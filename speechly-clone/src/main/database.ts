@@ -9,9 +9,13 @@ let db: Database | null = null;
 let dbPath: string = '';
 
 function logError(message: string): void {
-  const logPath = path.join(app.getPath('userData'), 'error.log');
-  const timestamp = new Date().toISOString();
-  fs.appendFileSync(logPath, `[${timestamp}] ${message}\n`);
+  try {
+    const logPath = path.join(app.getPath('userData'), 'error.log');
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(logPath, `[${timestamp}] ${message}\n`);
+  } catch (e) {
+    console.error(message);
+  }
 }
 
 function getDbPath(): string {
@@ -30,13 +34,15 @@ function saveDatabase(): void {
 }
 
 function findWasmFile(): string | null {
+  const resourcesPath = process.resourcesPath || '';
   const possiblePaths = [
-    path.join(process.resourcesPath || '', 'sql-wasm.wasm'),
-    path.join(process.resourcesPath || '', 'app.asar.unpacked', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+    path.join(resourcesPath, 'app.asar.unpacked', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+    path.join(resourcesPath, 'sql-wasm.wasm'),
     path.join(__dirname, '..', '..', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
-    path.join(__dirname, 'sql-wasm.wasm'),
-    path.join(app.getAppPath(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+    path.join(app.getAppPath().replace('app.asar', 'app.asar.unpacked'), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
   ];
+
+  logError(`Searching for WASM in paths: ${possiblePaths.join(', ')}`);
 
   for (const p of possiblePaths) {
     try {
@@ -49,7 +55,7 @@ function findWasmFile(): string | null {
     }
   }
 
-  logError(`WASM not found. Tried paths: ${possiblePaths.join(', ')}`);
+  logError(`WASM not found in any local path`);
   return null;
 }
 
