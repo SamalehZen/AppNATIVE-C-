@@ -24,7 +24,40 @@ export interface CustomDictionary {
   context: string;
 }
 
-export type CleanupContext = 'email' | 'chat' | 'document' | 'code' | 'general';
+export type CleanupContext = 
+  | 'email'
+  | 'chat'
+  | 'document'
+  | 'code'
+  | 'browser'
+  | 'social'
+  | 'ai'
+  | 'spreadsheet'
+  | 'terminal'
+  | 'general';
+
+export interface DetectedContext {
+  type: CleanupContext;
+  name: string;
+  icon: string;
+  appName: string;
+  confidence: 'high' | 'medium' | 'low';
+  subContext?: string;
+}
+
+export interface ActiveWindowInfo {
+  title: string;
+  processName: string;
+  bundleId: string;
+  executablePath: string;
+  pid: number;
+  isValid: boolean;
+}
+
+export interface ContextCleanupResult extends CleanupResult {
+  context?: DetectedContext;
+  processingTime?: number;
+}
 
 export interface CleanupOptions {
   context?: CleanupContext;
@@ -70,6 +103,12 @@ export interface ElectronAPI {
   copyToClipboard: (text: string) => Promise<void>;
   getVersion: () => Promise<string>;
   cleanupTranscript: (text: string, options: CleanupOptions) => Promise<CleanupResult>;
+  getActiveWindow: () => Promise<ActiveWindowInfo | null>;
+  detectContext: (windowInfo: ActiveWindowInfo) => Promise<DetectedContext>;
+  cleanupWithContext: (text: string, context: DetectedContext, language?: string) => Promise<ContextCleanupResult>;
+  cleanupTranscriptAuto: (text: string, language?: string) => Promise<ContextCleanupResult>;
+  onToggleRecording: (callback: () => void) => void;
+  removeToggleRecordingListener: () => void;
 }
 
 declare global {

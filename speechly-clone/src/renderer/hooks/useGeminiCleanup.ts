@@ -1,5 +1,11 @@
 import { useState, useCallback } from 'react';
-import { CleanupOptions, CleanupResult, CleanupContext } from '../../shared/types';
+import {
+  CleanupOptions,
+  CleanupResult,
+  CleanupContext,
+  DetectedContext,
+  ContextCleanupResult,
+} from '../../shared/types';
 
 interface GeminiCleanupHook {
   cleanedText: string;
@@ -7,9 +13,12 @@ interface GeminiCleanupHook {
   error: string | null;
   changes: string[];
   cleanup: (text: string, options?: CleanupOptions) => Promise<void>;
+  cleanupWithAutoContext: (text: string, language?: string) => Promise<DetectedContext | null>;
   reset: () => void;
   context: CleanupContext;
   setContext: (context: CleanupContext) => void;
+  detectedContext: DetectedContext | null;
+  processingTime: number | null;
 }
 
 export function useGeminiCleanup(): GeminiCleanupHook {
@@ -18,39 +27,90 @@ export function useGeminiCleanup(): GeminiCleanupHook {
   const [error, setError] = useState<string | null>(null);
   const [changes, setChanges] = useState<string[]>([]);
   const [context, setContext] = useState<CleanupContext>('general');
+  const [detectedContext, setDetectedContext] = useState<DetectedContext | null>(null);
+  const [processingTime, setProcessingTime] = useState<number | null>(null);
 
-  const cleanup = useCallback(async (text: string, options?: CleanupOptions) => {
-    if (!text.trim()) {
-      setCleanedText('');
-      return;
-    }
+  const cleanup = useCallback(
+    async (text: string, options?: CleanupOptions) => {
+      if (!text.trim()) {
+        setCleanedText('');
+        return;
+      }
 
-    setIsProcessing(true);
-    setError(null);
+      setIsProcessing(true);
+      setError(null);
 
-    try {
-      const result: CleanupResult = await window.electronAPI.cleanupTranscript(text, {
-        context: options?.context || context,
-        preserveStyle: options?.preserveStyle ?? true,
-        removeFillers: options?.removeFillers ?? true,
-        language: options?.language,
-      });
+      try {
+        const result: CleanupResult = await window.electronAPI.cleanupTranscript(
+          text,
+          {
+            context: options?.context || context,
+            preserveStyle: options?.preserveStyle ?? true,
+            removeFillers: options?.removeFillers ?? true,
+            language: options?.language,
+          }
+        );
 
-      setCleanedText(result.cleaned);
-      setChanges(result.changes);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to cleanup text';
-      setError(errorMessage);
-      setCleanedText(text);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [context]);
+        setCleanedText(result.cleaned);
+        setChanges(result.changes);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to cleanup text';
+        setError(errorMessage);
+        setCleanedText(text);
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    [context]
+  );
+
+  const cleanupWithAutoContext = useCallback(
+    async (text: string, language?: string): Promise<DetectedContext | null> => {
+      if (!text.trim()) {
+        setCleanedText('');
+        return null;
+      }
+
+      setIsProcessing(true);
+      setError(null);
+
+      try {
+        const result: ContextCleanupResult =
+          await window.electronAPI.cleanupTranscriptAuto(text, language);
+
+        setCleanedText(result.cleaned);
+        setChanges(result.changes);
+
+        if (result.context) {
+          setDetectedContext(result.context);
+          setContext(result.context.type);
+        }
+
+        if (result.processingTime) {
+          setProcessingTime(result.processingTime);
+        }
+
+        return result.context || null;
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to cleanup text';
+        setError(errorMessage);
+        setCleanedText(text);
+        return null;
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    []
+  );
 
   const reset = useCallback(() => {
     setCleanedText('');
     setError(null);
     setChanges([]);
+    setDetectedContext(null);
+    setProcessingTime(null);
   }, []);
 
   return {
@@ -59,8 +119,11 @@ export function useGeminiCleanup(): GeminiCleanupHook {
     error,
     changes,
     cleanup,
+    cleanupWithAutoContext,
     reset,
     context,
     setContext,
+    detectedContext,
+    processingTime,
   };
 }

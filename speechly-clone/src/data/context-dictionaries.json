@@ -1,0 +1,228 @@
+{
+  "code": {
+    "replacements": {
+      "point": ".",
+      "virgule": ",",
+      "deux points": ":",
+      "point virgule": ";",
+      "égal égal égal": "===",
+      "triple égal": "===",
+      "égal égal": "==",
+      "double égal": "==",
+      "différent de": "!==",
+      "flèche": "=>",
+      "fat arrow": "=>",
+      "arrow function": "=>",
+      "parenthèse ouvrante": "(",
+      "parenthèse fermante": ")",
+      "ouvre parenthèse": "(",
+      "ferme parenthèse": ")",
+      "crochet ouvrant": "[",
+      "crochet fermant": "]",
+      "ouvre crochet": "[",
+      "ferme crochet": "]",
+      "accolade ouvrante": "{",
+      "accolade fermante": "}",
+      "ouvre accolade": "{",
+      "ferme accolade": "}",
+      "guillemet": "\"",
+      "double quote": "\"",
+      "simple quote": "'",
+      "backtick": "`",
+      "backslash": "\\",
+      "slash": "/",
+      "underscore": "_",
+      "tiret bas": "_",
+      "tiret": "-",
+      "plus égal": "+=",
+      "moins égal": "-=",
+      "fois égal": "*=",
+      "divisé égal": "/=",
+      "et logique": "&&",
+      "ou logique": "||",
+      "point d'exclamation": "!",
+      "null coalescing": "??",
+      "optional chaining": "?.",
+      "spread operator": "...",
+      "trois points": "..."
+    },
+    "preserveTerms": [
+      "useState", "useEffect", "useCallback", "useMemo", "useRef", "useContext",
+      "async", "await", "const", "let", "var", "function", "return", "export", "import",
+      "interface", "type", "class", "extends", "implements", "static", "private", "public",
+      "protected", "readonly", "enum", "namespace", "module", "declare",
+      "React", "Component", "useState", "useEffect", "props", "state",
+      "API", "REST", "GraphQL", "JSON", "XML", "HTTP", "HTTPS", "URL", "URI",
+      "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS",
+      "npm", "yarn", "pnpm", "bun", "node", "deno",
+      "git", "GitHub", "GitLab", "Bitbucket",
+      "TypeScript", "JavaScript", "Python", "Java", "Kotlin", "Swift", "Rust", "Go",
+      "Docker", "Kubernetes", "AWS", "Azure", "GCP",
+      "SQL", "NoSQL", "MongoDB", "PostgreSQL", "MySQL", "Redis",
+      "CI", "CD", "DevOps", "SRE",
+      "TODO", "FIXME", "HACK", "NOTE", "XXX", "BUG"
+    ],
+    "commandPrefixes": [
+      "npm", "yarn", "pnpm", "git", "docker", "kubectl", "aws", "gcloud", "az"
+    ]
+  },
+  "email": {
+    "replacements": {
+      "à la ligne": "\n",
+      "nouvelle ligne": "\n",
+      "nouveau paragraphe": "\n\n",
+      "double à la ligne": "\n\n",
+      "point d'exclamation": "!",
+      "point d'interrogation": "?",
+      "virgule": ",",
+      "point": ".",
+      "deux points": ":",
+      "point virgule": ";",
+      "tiret": "-",
+      "ouvre parenthèse": "(",
+      "ferme parenthèse": ")",
+      "arobase": "@",
+      "at": "@"
+    },
+    "salutations": {
+      "fr": ["Bonjour", "Bonsoir", "Madame", "Monsieur", "Cher", "Chère"],
+      "en": ["Hi", "Hello", "Dear", "Good morning", "Good afternoon", "Good evening"]
+    },
+    "closings": {
+      "fr": ["Cordialement", "Bien cordialement", "Sincères salutations", "Merci", "À bientôt"],
+      "en": ["Best regards", "Kind regards", "Best", "Thanks", "Thank you", "Sincerely"]
+    },
+    "abbreviations": {
+      "asap": "dès que possible",
+      "fyi": "pour information",
+      "btw": "au fait",
+      "pj": "pièce jointe",
+      "re": "concernant",
+      "cc": "copie",
+      "cci": "copie cachée"
+    }
+  },
+  "chat": {
+    "replacements": {
+      "point d'exclamation": "!",
+      "point d'interrogation": "?",
+      "smiley": ":)",
+      "triste": ":(",
+      "clin d'oeil": ";)",
+      "lol": "😂",
+      "mdr": "😂",
+      "coeur": "❤️",
+      "pouce": "👍"
+    },
+    "preserveInformal": [
+      "lol", "mdr", "ptdr", "xD", "ok", "okay", "ouais", "yep", "nope",
+      "btw", "imo", "imho", "afaik", "tbh", "ngl", "idk", "omg", "brb"
+    ],
+    "emojiMappings": {
+      "heureux": "😊",
+      "content": "😊",
+      "triste": "😢",
+      "en colère": "😠",
+      "surpris": "😮",
+      "love": "❤️",
+      "like": "👍",
+      "ok": "👌",
+      "salut": "👋",
+      "bravo": "👏",
+      "feu": "🔥",
+      "fusée": "🚀"
+    }
+  },
+  "document": {
+    "replacements": {
+      "à la ligne": "\n",
+      "nouvelle ligne": "\n",
+      "nouveau paragraphe": "\n\n",
+      "saut de paragraphe": "\n\n",
+      "tiret": "-",
+      "point": ".",
+      "virgule": ",",
+      "deux points": ":",
+      "point virgule": ";",
+      "guillemet ouvrant": "«",
+      "guillemet fermant": "»",
+      "ouvre guillemet": "«",
+      "ferme guillemet": "»",
+      "puce": "•",
+      "numéro": "n°"
+    },
+    "formatting": {
+      "titre 1": "# ",
+      "titre 2": "## ",
+      "titre 3": "### ",
+      "liste": "- ",
+      "liste numérotée": "1. "
+    }
+  },
+  "social": {
+    "replacements": {
+      "hashtag": "#",
+      "at": "@",
+      "arobase": "@",
+      "lien": "[lien]"
+    },
+    "preserveTerms": [
+      "RT", "DM", "PM", "thread", "post", "story", "reel", "tweet"
+    ],
+    "characterLimits": {
+      "twitter": 280,
+      "linkedin": 3000
+    }
+  },
+  "ai": {
+    "replacements": {
+      "à la ligne": "\n",
+      "nouvelle ligne": "\n",
+      "nouveau paragraphe": "\n\n",
+      "tiret": "-",
+      "puce": "•",
+      "numéro": "1."
+    },
+    "promptPatterns": [
+      "explique", "génère", "crée", "écris", "traduis", "résume",
+      "analyse", "compare", "liste", "décris", "suggère"
+    ]
+  },
+  "terminal": {
+    "replacements": {
+      "pipe": "|",
+      "et commercial": "&",
+      "double et": "&&",
+      "double pipe": "||",
+      "supérieur": ">",
+      "inférieur": "<",
+      "double supérieur": ">>",
+      "slash": "/",
+      "backslash": "\\",
+      "tiret": "-",
+      "double tiret": "--",
+      "égal": "=",
+      "étoile": "*",
+      "point d'interrogation": "?",
+      "tilde": "~",
+      "dollar": "$",
+      "arobase": "@"
+    },
+    "preserveTerms": [
+      "sudo", "chmod", "chown", "grep", "awk", "sed", "cat", "ls", "cd", "pwd",
+      "mkdir", "rm", "cp", "mv", "touch", "echo", "export", "source"
+    ]
+  },
+  "general": {
+    "replacements": {
+      "point": ".",
+      "virgule": ",",
+      "point d'exclamation": "!",
+      "point d'interrogation": "?",
+      "deux points": ":",
+      "point virgule": ";",
+      "à la ligne": "\n",
+      "nouveau paragraphe": "\n\n"
+    }
+  }
+}
