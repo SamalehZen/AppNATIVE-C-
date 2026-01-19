@@ -23,8 +23,17 @@ function saveDatabase(): void {
   }
 }
 
+function getWasmPath(): string {
+  const isDev = !app.isPackaged;
+  if (isDev) {
+    return path.join(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm');
+  }
+  return path.join(process.resourcesPath, 'sql-wasm.wasm');
+}
+
 export async function initDatabase(): Promise<void> {
-  const SQL = await initSqlJs();
+  const wasmBinary = fs.readFileSync(getWasmPath());
+  const SQL = await initSqlJs({ wasmBinary });
   const filePath = getDbPath();
   
   try {
