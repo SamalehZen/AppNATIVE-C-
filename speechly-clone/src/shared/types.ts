@@ -2,9 +2,17 @@ export interface Settings {
   id: number;
   geminiApiKey: string;
   defaultLanguage: string;
-  autoCleanup: boolean;
-  theme: 'dark' | 'light';
+  autoDetectLanguage: boolean;
   hotkeyRecord: string;
+  hotkeyInsert: string;
+  autoCleanup: boolean;
+  contextAwareCleanup: boolean;
+  saveHistory: boolean;
+  historyRetentionDays: number;
+  theme: 'dark' | 'light' | 'system';
+  minimizeToTray: boolean;
+  launchAtStartup: boolean;
+  appVersion: string;
 }
 
 export interface TranscriptHistory {
@@ -13,6 +21,7 @@ export interface TranscriptHistory {
   cleaned: string;
   language: string;
   context: string;
+  contextName: string;
   createdAt: string;
   wordCount: number;
 }
@@ -22,6 +31,7 @@ export interface CustomDictionary {
   term: string;
   replacement: string;
   context: string;
+  createdAt: string;
 }
 
 export type CleanupContext = 
@@ -95,11 +105,24 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { code: 'tr-TR', name: 'Türkçe' },
 ];
 
+export interface DailyStats {
+  date: string;
+  wordCount: number;
+  transcriptCount: number;
+}
+
 export interface ElectronAPI {
   getSettings: () => Promise<Settings | null>;
   saveSettings: (settings: Partial<Settings>) => Promise<void>;
   saveTranscript: (data: { original: string; cleaned: string; language: string; context: string }) => Promise<void>;
-  getHistory: (limit: number, offset: number) => Promise<TranscriptHistory[]>;
+  getHistory: (limit: number, offset: number, context?: string) => Promise<TranscriptHistory[]>;
+  deleteHistoryItem: (id: number) => Promise<void>;
+  clearHistory: () => Promise<void>;
+  getStats: () => Promise<{ totalWords: number; todayWords: number; dbSize: string }>;
+  getDictionary: () => Promise<CustomDictionary[]>;
+  addDictionaryTerm: (term: string, replacement: string, context: string) => Promise<void>;
+  updateDictionaryTerm: (id: number, term: string, replacement: string, context: string) => Promise<void>;
+  deleteDictionaryTerm: (id: number) => Promise<void>;
   copyToClipboard: (text: string) => Promise<void>;
   getVersion: () => Promise<string>;
   cleanupTranscript: (text: string, options: CleanupOptions) => Promise<CleanupResult>;
@@ -107,8 +130,14 @@ export interface ElectronAPI {
   detectContext: (windowInfo: ActiveWindowInfo) => Promise<DetectedContext>;
   cleanupWithContext: (text: string, context: DetectedContext, language?: string) => Promise<ContextCleanupResult>;
   cleanupTranscriptAuto: (text: string, language?: string) => Promise<ContextCleanupResult>;
+  updateHotkey: (type: 'record' | 'insert', hotkey: string) => Promise<void>;
+  setAutoLaunch: (enabled: boolean) => Promise<void>;
   onToggleRecording: (callback: () => void) => void;
   removeToggleRecordingListener: () => void;
+  onNavigate: (callback: (path: string) => void) => void;
+  removeNavigateListener: () => void;
+  onToggleDictation: (callback: () => void) => void;
+  removeToggleDictationListener: () => void;
 }
 
 declare global {

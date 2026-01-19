@@ -1,8 +1,21 @@
 import { ipcMain, clipboard, app } from 'electron';
-import { getSettings, saveSettings, saveTranscript, getHistory } from './database';
+import { 
+  getSettings, 
+  saveSettings, 
+  saveTranscript, 
+  getHistory,
+  deleteHistoryItem,
+  clearHistory,
+  getStats,
+  getDictionary,
+  addDictionaryTerm,
+  updateDictionaryTerm,
+  deleteDictionaryTerm
+} from './database';
 import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto } from './gemini';
 import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo } from '../shared/types';
 import { getContextDetector } from './services/context-detector';
+import { updateHotkey, setAutoLaunch, getTrayManager } from './index';
 
 let nativeBridge: any = null;
 
@@ -51,10 +64,41 @@ export function registerIpcHandlers(): void {
     context: string;
   }) => {
     saveTranscript(data);
+    getTrayManager()?.refreshStats();
   });
 
-  ipcMain.handle('db:getHistory', async (_, limit: number, offset: number) => {
-    return getHistory(limit, offset);
+  ipcMain.handle('db:getHistory', async (_, limit: number, offset: number, context?: string) => {
+    return getHistory(limit, offset, context);
+  });
+
+  ipcMain.handle('db:deleteHistoryItem', async (_, id: number) => {
+    deleteHistoryItem(id);
+    getTrayManager()?.refreshStats();
+  });
+
+  ipcMain.handle('db:clearHistory', async () => {
+    clearHistory();
+    getTrayManager()?.refreshStats();
+  });
+
+  ipcMain.handle('db:getStats', async () => {
+    return getStats();
+  });
+
+  ipcMain.handle('db:getDictionary', async () => {
+    return getDictionary();
+  });
+
+  ipcMain.handle('db:addDictionaryTerm', async (_, term: string, replacement: string, context: string) => {
+    addDictionaryTerm(term, replacement, context);
+  });
+
+  ipcMain.handle('db:updateDictionaryTerm', async (_, id: number, term: string, replacement: string, context: string) => {
+    updateDictionaryTerm(id, term, replacement, context);
+  });
+
+  ipcMain.handle('db:deleteDictionaryTerm', async (_, id: number) => {
+    deleteDictionaryTerm(id);
   });
 
   ipcMain.handle('clipboard:copy', async (_, text: string) => {
@@ -65,8 +109,24 @@ export function registerIpcHandlers(): void {
     return app.getVersion();
   });
 
+  ipcMain.handle('app:updateHotkey', async (_, type: 'record' | 'insert', hotkey: string) => {
+    updateHotkey(type, hotkey);
+  });
+
+  ipcMain.handle('app:setAutoLaunch', async (_, enabled: boolean) => {
+    setAutoLaunch(enabled);
+  });
+
   ipcMain.handle('gemini:cleanup', async (_, text: string, options: CleanupOptions) => {
-    return cleanupTranscript(text, options);
+    getTrayManager()?.setProcessingState();
+    try {
+      const result = await cleanupTranscript(text, options);
+      getTrayManager()?.setRecordingState(false);
+      return result;
+    } catch (error) {
+      getTrayManager()?.setRecordingState(false);
+      throw error;
+    }
   });
 
   ipcMain.handle('window:getActive', async (): Promise<ActiveWindowInfo | null> => {
@@ -107,13 +167,22 @@ export function registerIpcHandlers(): void {
       context: DetectedContext,
       language?: string
     ) => {
-      return cleanupWithContext(text, context, language);
+      getTrayManager()?.setProcessingState();
+      try {
+        const result = await cleanupWithContext(text, context, language);
+        getTrayManager()?.setRecordingState(false);
+        return result;
+      } catch (error) {
+        getTrayManager()?.setRecordingState(false);
+        throw error;
+      }
     }
   );
 
   ipcMain.handle(
     'gemini:cleanupAuto',
     async (_, text: string, language?: string) => {
+      getTrayManager()?.setProcessingState();
       try {
         const native = await getNativeBridge();
         let windowInfo = null;
@@ -129,11 +198,18 @@ export function registerIpcHandlers(): void {
           }
         }
         
-        return cleanupTranscriptAuto(text, windowInfo, language);
+        const result = await cleanupTranscriptAuto(text, windowInfo, language);
+        getTrayManager()?.setRecordingState(false);
+        return result;
       } catch (error) {
         console.error('Auto cleanup error:', error);
+        getTrayManager()?.setRecordingState(false);
         return cleanupTranscriptAuto(text, null, language);
       }
     }
   );
+
+  ipcMain.handle('tray:setRecording', async (_, isRecording: boolean) => {
+    getTrayManager()?.setRecordingState(isRecording);
+  });
 }
