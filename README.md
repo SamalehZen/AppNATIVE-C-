@@ -2,6 +2,21 @@
 
 Native C++ modules for Electron applications that provide system-wide text injection, active window detection, and global hotkey management. Cross-platform support for Windows, macOS, and Linux.
 
+## 🚀 Quick Start - Déploiement Production
+
+```bash
+cd speechly-clone
+npm install
+npm run icons      # Génère les icônes
+npm run make       # Build les installeurs
+```
+
+**Voir le guide complet:** [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+**GitHub Actions:** Push un tag `v1.0.0` pour créer une release automatique avec tous les installeurs.
+
+---
+
 ## Features
 
 - **Window Detection**: Detect the currently active window (title, process name, PID, executable path)

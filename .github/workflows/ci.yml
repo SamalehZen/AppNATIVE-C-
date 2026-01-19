@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: speechly-clone/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./speechly-clone
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: ./speechly-clone
+        run: npm run typecheck
+
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: speechly-clone/package-lock.json
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxkbfile-dev libxtst-dev libxinerama-dev
+
+      - name: Install dependencies
+        working-directory: ./speechly-clone
+        run: npm ci
+
+      - name: Generate icons
+        working-directory: ./speechly-clone
+        run: npm run icons
+
+      - name: Test package (no make)
+        working-directory: ./speechly-clone
+        run: npm run package
