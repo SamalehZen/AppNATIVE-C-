@@ -1,6 +1,6 @@
 {
   "name": "speechly-clone",
-  "productName": "speechly-clone",
+  "productName": "Speechly Clone",
   "version": "1.0.0",
   "description": "Desktop voice dictation app with AI cleanup",
   "main": ".vite/build/main.js",
@@ -11,6 +11,8 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
+    "typecheck": "tsc --noEmit",
+    "icons": "node scripts/generate-icons.js",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
@@ -31,6 +33,7 @@
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
+    "@types/react-router-dom": "^5.3.3",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vitejs/plugin-react": "^4.2.1",
@@ -47,8 +50,12 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "better-sqlite3": "^12.6.2",
+    "date-fns": "^4.1.0",
     "electron-squirrel-startup": "^1.0.1",
+    "lucide-react": "^0.562.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^7.12.0",
+    "zustand": "^5.0.10"
   }
 }
