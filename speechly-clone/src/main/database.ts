@@ -1,17 +1,44 @@
-import Database from 'better-sqlite3';
+import initSqlJs, { Database, SqlValue } from 'sql.js';
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel } from '../shared/types';
 import { CONTEXT_NAMES } from '../shared/constants';
 
-let db: Database.Database;
+let db: Database | null = null;
+let dbPath: string = '';
 
-export function initDatabase(): void {
-  const dbPath = path.join(app.getPath('userData'), 'speechly.db');
-  db = new Database(dbPath);
+function getDbPath(): string {
+  if (!dbPath) {
+    dbPath = path.join(app.getPath('userData'), 'speechly.db');
+  }
+  return dbPath;
+}
+
+function saveDatabase(): void {
+  if (db) {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(getDbPath(), buffer);
+  }
+}
+
+export async function initDatabase(): Promise<void> {
+  const SQL = await initSqlJs();
+  const filePath = getDbPath();
   
-  db.exec(`
+  try {
+    if (fs.existsSync(filePath)) {
+      const fileBuffer = fs.readFileSync(filePath);
+      db = new SQL.Database(fileBuffer);
+    } else {
+      db = new SQL.Database();
+    }
+  } catch (e) {
+    db = new SQL.Database();
+  }
+  
+  db.run(`
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY DEFAULT 1,
       geminiApiKey TEXT DEFAULT '',
@@ -28,8 +55,10 @@ export function initDatabase(): void {
       minimizeToTray INTEGER DEFAULT 1,
       launchAtStartup INTEGER DEFAULT 0,
       CHECK (id = 1)
-    );
+    )
+  `);
 
+  db.run(`
     CREATE TABLE IF NOT EXISTS transcript_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       original TEXT NOT NULL,
@@ -39,26 +68,40 @@ export function initDatabase(): void {
       contextName TEXT DEFAULT 'Général',
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
       wordCount INTEGER DEFAULT 0
-    );
+    )
+  `);
 
+  db.run(`
     CREATE TABLE IF NOT EXISTS custom_dictionary (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       term TEXT NOT NULL,
       replacement TEXT NOT NULL,
       context TEXT DEFAULT 'all',
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    INSERT OR IGNORE INTO settings (id) VALUES (1);
+    )
   `);
+
+  const countResult = db.exec("SELECT COUNT(*) as count FROM settings WHERE id = 1");
+  const count = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] as number : 0;
+  if (count === 0) {
+    db.run("INSERT INTO settings (id) VALUES (1)");
+  }
 
   migrateDatabase();
   cleanupOldHistory();
+  saveDatabase();
 }
 
 function migrateDatabase(): void {
-  const columns = db.prepare("PRAGMA table_info(settings)").all() as any[];
-  const columnNames = columns.map(c => c.name);
+  if (!db) return;
+  
+  const columnsResult = db.exec("PRAGMA table_info(settings)");
+  const columnNames: string[] = [];
+  if (columnsResult.length > 0) {
+    columnsResult[0].values.forEach((row: SqlValue[]) => {
+      columnNames.push(row[1] as string);
+    });
+  }
 
   const newColumns = [
     { name: 'geminiModel', def: "TEXT DEFAULT 'gemini-2.0-flash'" },
@@ -74,62 +117,102 @@ function migrateDatabase(): void {
   for (const col of newColumns) {
     if (!columnNames.includes(col.name)) {
       try {
-        db.exec(`ALTER TABLE settings ADD COLUMN ${col.name} ${col.def}`);
+        db.run(`ALTER TABLE settings ADD COLUMN ${col.name} ${col.def}`);
       } catch (e) {
       }
     }
   }
 
-  const historyColumns = db.prepare("PRAGMA table_info(transcript_history)").all() as any[];
-  const historyColumnNames = historyColumns.map(c => c.name);
+  const historyColumnsResult = db.exec("PRAGMA table_info(transcript_history)");
+  const historyColumnNames: string[] = [];
+  if (historyColumnsResult.length > 0) {
+    historyColumnsResult[0].values.forEach((row: SqlValue[]) => {
+      historyColumnNames.push(row[1] as string);
+    });
+  }
   
   if (!historyColumnNames.includes('contextName')) {
     try {
-      db.exec("ALTER TABLE transcript_history ADD COLUMN contextName TEXT DEFAULT 'Général'");
+      db.run("ALTER TABLE transcript_history ADD COLUMN contextName TEXT DEFAULT 'Général'");
     } catch (e) {
     }
   }
 
-  const dictColumns = db.prepare("PRAGMA table_info(custom_dictionary)").all() as any[];
-  const dictColumnNames = dictColumns.map(c => c.name);
+  const dictColumnsResult = db.exec("PRAGMA table_info(custom_dictionary)");
+  const dictColumnNames: string[] = [];
+  if (dictColumnsResult.length > 0) {
+    dictColumnsResult[0].values.forEach((row: SqlValue[]) => {
+      dictColumnNames.push(row[1] as string);
+    });
+  }
   
   if (!dictColumnNames.includes('createdAt')) {
     try {
-      db.exec("ALTER TABLE custom_dictionary ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP");
+      db.run("ALTER TABLE custom_dictionary ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP");
     } catch (e) {
     }
   }
 }
 
 function cleanupOldHistory(): void {
+  if (!db) return;
   const settings = getSettings();
   if (settings && settings.historyRetentionDays > 0) {
-    const stmt = db.prepare(`
-      DELETE FROM transcript_history 
-      WHERE datetime(createdAt) < datetime('now', '-' || ? || ' days')
-    `);
-    stmt.run(settings.historyRetentionDays);
+    db.run(
+      `DELETE FROM transcript_history WHERE datetime(createdAt) < datetime('now', '-' || ? || ' days')`,
+      [settings.historyRetentionDays]
+    );
   }
 }
 
+const VALID_GEMINI_MODELS: GeminiModel[] = [
+  'gemini-3-flash-preview',
+  'gemini-2.5-flash-preview-09-2025',
+  'gemini-2.5-flash-lite-preview-09-2025',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
+];
+
+function isValidGeminiModel(model: string): model is GeminiModel {
+  return VALID_GEMINI_MODELS.includes(model as GeminiModel);
+}
+
+function isValidTheme(theme: string): theme is 'dark' | 'light' | 'system' {
+  return ['dark', 'light', 'system'].includes(theme);
+}
+
 export function getSettings(): Settings | null {
-  const stmt = db.prepare('SELECT * FROM settings WHERE id = 1');
-  const row = stmt.get() as any;
-  if (!row) return null;
+  if (!db) return null;
+  
+  const result = db.exec("SELECT * FROM settings WHERE id = 1");
+  if (result.length === 0 || result[0].values.length === 0) return null;
+  
+  const columns = result[0].columns;
+  const values = result[0].values[0];
+  const row: Record<string, SqlValue> = {};
+  columns.forEach((col: string, i: number) => {
+    row[col] = values[i];
+  });
+  
+  const geminiModelStr = (row.geminiModel as string) || 'gemini-2.0-flash';
+  const themeStr = (row.theme as string) || 'dark';
   
   return {
-    id: row.id,
-    geminiApiKey: row.geminiApiKey || '',
-    geminiModel: row.geminiModel || 'gemini-2.0-flash',
-    defaultLanguage: row.defaultLanguage || 'fr-FR',
+    id: row.id as number,
+    geminiApiKey: (row.geminiApiKey as string) || '',
+    geminiModel: isValidGeminiModel(geminiModelStr) ? geminiModelStr : 'gemini-2.0-flash',
+    defaultLanguage: (row.defaultLanguage as string) || 'fr-FR',
     autoDetectLanguage: Boolean(row.autoDetectLanguage),
-    hotkeyRecord: row.hotkeyRecord || 'CommandOrControl+Shift+Space',
-    hotkeyInsert: row.hotkeyInsert || 'CommandOrControl+Shift+V',
+    hotkeyRecord: (row.hotkeyRecord as string) || 'CommandOrControl+Shift+Space',
+    hotkeyInsert: (row.hotkeyInsert as string) || 'CommandOrControl+Shift+V',
     autoCleanup: Boolean(row.autoCleanup),
     contextAwareCleanup: row.contextAwareCleanup !== undefined ? Boolean(row.contextAwareCleanup) : true,
     saveHistory: row.saveHistory !== undefined ? Boolean(row.saveHistory) : true,
-    historyRetentionDays: row.historyRetentionDays || 30,
-    theme: row.theme || 'dark',
+    historyRetentionDays: (row.historyRetentionDays as number) || 30,
+    theme: isValidTheme(themeStr) ? themeStr : 'dark',
     minimizeToTray: row.minimizeToTray !== undefined ? Boolean(row.minimizeToTray) : true,
     launchAtStartup: Boolean(row.launchAtStartup),
     appVersion: app.getVersion(),
@@ -137,10 +220,12 @@ export function getSettings(): Settings | null {
 }
 
 export function saveSettings(settings: Partial<Settings>): void {
-  const fields: string[] = [];
-  const values: any[] = [];
+  if (!db) return;
   
-  const fieldMap: Record<string, { column: string; transform?: (v: any) => any }> = {
+  const fields: string[] = [];
+  const values: (string | number)[] = [];
+  
+  const fieldMap: Record<string, { column: string; transform?: (v: unknown) => string | number }> = {
     geminiApiKey: { column: 'geminiApiKey' },
     geminiModel: { column: 'geminiModel' },
     defaultLanguage: { column: 'defaultLanguage' },
@@ -160,13 +245,13 @@ export function saveSettings(settings: Partial<Settings>): void {
     if (value !== undefined && fieldMap[key]) {
       const { column, transform } = fieldMap[key];
       fields.push(`${column} = ?`);
-      values.push(transform ? transform(value) : value);
+      values.push(transform ? transform(value) : value as string | number);
     }
   }
   
   if (fields.length > 0) {
-    const stmt = db.prepare(`UPDATE settings SET ${fields.join(', ')} WHERE id = 1`);
-    stmt.run(...values);
+    db.run(`UPDATE settings SET ${fields.join(', ')} WHERE id = 1`, values);
+    saveDatabase();
   }
 }
 
@@ -176,22 +261,26 @@ export function saveTranscript(data: {
   language: string;
   context: string;
 }): void {
+  if (!db) return;
+  
   const settings = getSettings();
   if (settings && !settings.saveHistory) return;
 
   const wordCount = data.cleaned.split(/\s+/).filter(w => w.length > 0).length;
   const contextName = CONTEXT_NAMES[data.context] || 'Général';
   
-  const stmt = db.prepare(`
-    INSERT INTO transcript_history (original, cleaned, language, context, contextName, wordCount)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(data.original, data.cleaned, data.language, data.context, contextName, wordCount);
+  db.run(
+    `INSERT INTO transcript_history (original, cleaned, language, context, contextName, wordCount) VALUES (?, ?, ?, ?, ?, ?)`,
+    [data.original, data.cleaned, data.language, data.context, contextName, wordCount]
+  );
+  saveDatabase();
 }
 
 export function getHistory(limit: number, offset: number, context?: string): TranscriptHistory[] {
+  if (!db) return [];
+  
   let sql = `SELECT * FROM transcript_history`;
-  const params: any[] = [];
+  const params: (string | number)[] = [];
   
   if (context && context !== 'all') {
     sql += ` WHERE context = ?`;
@@ -201,34 +290,48 @@ export function getHistory(limit: number, offset: number, context?: string): Tra
   sql += ` ORDER BY createdAt DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
-  const stmt = db.prepare(sql);
-  return stmt.all(...params) as TranscriptHistory[];
+  const result = db.exec(sql, params);
+  if (result.length === 0) return [];
+  
+  const columns = result[0].columns;
+  return result[0].values.map((row: SqlValue[]) => {
+    const obj: Record<string, SqlValue> = {};
+    columns.forEach((col: string, i: number) => {
+      obj[col] = row[i];
+    });
+    return obj as unknown as TranscriptHistory;
+  });
 }
 
 export function deleteHistoryItem(id: number): void {
-  const stmt = db.prepare('DELETE FROM transcript_history WHERE id = ?');
-  stmt.run(id);
+  if (!db) return;
+  db.run('DELETE FROM transcript_history WHERE id = ?', [id]);
+  saveDatabase();
 }
 
 export function clearHistory(): void {
-  db.exec('DELETE FROM transcript_history');
+  if (!db) return;
+  db.run('DELETE FROM transcript_history');
+  saveDatabase();
 }
 
 export function getStats(): { totalWords: number; todayWords: number; dbSize: string } {
-  const totalStmt = db.prepare('SELECT COALESCE(SUM(wordCount), 0) as total FROM transcript_history');
-  const total = (totalStmt.get() as any)?.total || 0;
+  if (!db) return { totalWords: 0, todayWords: 0, dbSize: '0' };
+  
+  const totalResult = db.exec('SELECT COALESCE(SUM(wordCount), 0) as total FROM transcript_history');
+  const total = totalResult.length > 0 && totalResult[0].values.length > 0 ? totalResult[0].values[0][0] as number : 0;
 
-  const todayStmt = db.prepare(`
+  const todayResult = db.exec(`
     SELECT COALESCE(SUM(wordCount), 0) as today 
     FROM transcript_history 
     WHERE date(createdAt) = date('now')
   `);
-  const today = (todayStmt.get() as any)?.today || 0;
+  const today = todayResult.length > 0 && todayResult[0].values.length > 0 ? todayResult[0].values[0][0] as number : 0;
 
-  const dbPath = path.join(app.getPath('userData'), 'speechly.db');
+  const filePath = getDbPath();
   let dbSize = '0';
   try {
-    const stats = fs.statSync(dbPath);
+    const stats = fs.statSync(filePath);
     const sizeMB = stats.size / (1024 * 1024);
     dbSize = sizeMB.toFixed(2);
   } catch (e) {
@@ -238,34 +341,49 @@ export function getStats(): { totalWords: number; todayWords: number; dbSize: st
 }
 
 export function getDictionary(): CustomDictionary[] {
-  const stmt = db.prepare('SELECT * FROM custom_dictionary ORDER BY term ASC');
-  return stmt.all() as CustomDictionary[];
+  if (!db) return [];
+  
+  const result = db.exec('SELECT * FROM custom_dictionary ORDER BY term ASC');
+  if (result.length === 0) return [];
+  
+  const columns = result[0].columns;
+  return result[0].values.map((row: SqlValue[]) => {
+    const obj: Record<string, SqlValue> = {};
+    columns.forEach((col: string, i: number) => {
+      obj[col] = row[i];
+    });
+    return obj as unknown as CustomDictionary;
+  });
 }
 
 export function addDictionaryTerm(term: string, replacement: string, context: string): void {
-  const stmt = db.prepare(`
-    INSERT INTO custom_dictionary (term, replacement, context)
-    VALUES (?, ?, ?)
-  `);
-  stmt.run(term, replacement, context);
+  if (!db) return;
+  db.run(
+    `INSERT INTO custom_dictionary (term, replacement, context) VALUES (?, ?, ?)`,
+    [term, replacement, context]
+  );
+  saveDatabase();
 }
 
 export function updateDictionaryTerm(id: number, term: string, replacement: string, context: string): void {
-  const stmt = db.prepare(`
-    UPDATE custom_dictionary 
-    SET term = ?, replacement = ?, context = ?
-    WHERE id = ?
-  `);
-  stmt.run(term, replacement, context, id);
+  if (!db) return;
+  db.run(
+    `UPDATE custom_dictionary SET term = ?, replacement = ?, context = ? WHERE id = ?`,
+    [term, replacement, context, id]
+  );
+  saveDatabase();
 }
 
 export function deleteDictionaryTerm(id: number): void {
-  const stmt = db.prepare('DELETE FROM custom_dictionary WHERE id = ?');
-  stmt.run(id);
+  if (!db) return;
+  db.run('DELETE FROM custom_dictionary WHERE id = ?', [id]);
+  saveDatabase();
 }
 
 export function closeDatabase(): void {
   if (db) {
+    saveDatabase();
     db.close();
+    db = null;
   }
 }
