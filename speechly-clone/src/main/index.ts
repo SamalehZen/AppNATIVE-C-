@@ -118,8 +118,8 @@ export function getTrayManager(): TrayManager | null {
 
 export { updateHotkey, setAutoLaunch };
 
-app.whenReady().then(() => {
-  initDatabase();
+app.whenReady().then(async () => {
+  await initDatabase();
   registerIpcHandlers();
   createWindow();
   registerGlobalShortcuts();

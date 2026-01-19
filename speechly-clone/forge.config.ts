@@ -6,14 +6,11 @@ import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerDMG } from '@electron-forge/maker-dmg';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
-import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: {
-      unpack: '**/node_modules/{better-sqlite3,bindings,file-uri-to-path}/**/*',
-    },
+    asar: true,
     appBundleId: 'com.speechly.clone',
     appCategoryType: 'public.app-category.productivity',
     name: 'Speechly Clone',
@@ -55,7 +52,6 @@ const config: ForgeConfig = {
     }),
   ],
   plugins: [
-    new AutoUnpackNativesPlugin({}),
     new VitePlugin({
       build: [
         {
