@@ -1,7 +1,7 @@
 {
   "name": "speechly-clone",
   "productName": "Speechly Clone",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Desktop voice dictation app with AI cleanup",
   "main": ".vite/build/main.js",
   "private": true,

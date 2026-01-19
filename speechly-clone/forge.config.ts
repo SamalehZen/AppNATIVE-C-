@@ -12,7 +12,7 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      unpack: '**/{*.node,*.dll,*.so,*.dylib,better-sqlite3/**/*}',
+      unpack: '**/node_modules/{better-sqlite3,bindings,file-uri-to-path}/**/*',
     },
     appBundleId: 'com.speechly.clone',
     appCategoryType: 'public.app-category.productivity',
