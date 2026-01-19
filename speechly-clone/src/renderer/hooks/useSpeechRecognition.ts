@@ -54,7 +54,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   const shouldRestartRef = useRef(false);
 
   const isSupported = typeof window !== 'undefined' && 
-    (window.SpeechRecognition || window.webkitSpeechRecognition);
+    !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   const createRecognition = useCallback(() => {
     if (!isSupported) return null;

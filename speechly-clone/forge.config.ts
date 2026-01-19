@@ -3,6 +3,7 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
+import { MakerDMG } from '@electron-forge/maker-dmg';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
@@ -12,10 +13,17 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     appBundleId: 'com.speechly.clone',
+    appCategoryType: 'public.app-category.productivity',
     name: 'Speechly Clone',
     executableName: 'speechly-clone',
     extraResource: ['./resources/icons'],
     icon: './resources/icons/icon',
+    osxSign: process.env.APPLE_ID ? {} : undefined,
+    osxNotarize: process.env.APPLE_ID ? {
+      appleId: process.env.APPLE_ID!,
+      appleIdPassword: process.env.APPLE_PASSWORD!,
+      teamId: process.env.APPLE_TEAM_ID!,
+    } : undefined,
   },
   rebuildConfig: {},
   makers: [
@@ -25,6 +33,10 @@ const config: ForgeConfig = {
       iconUrl: 'https://raw.githubusercontent.com/SamalehZen/AppNATIVE-C-/main/speechly-clone/resources/icons/icon.ico',
     }),
     new MakerZIP({}, ['darwin']),
+    new MakerDMG({
+      icon: './resources/icons/icon.icns',
+      format: 'ULFO',
+    }),
     new MakerRpm({
       options: {
         icon: './resources/icons/icon.png',
