@@ -10,14 +10,12 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: {
-      unpack: '**/node_modules/sql.js/**/*',
-    },
+    asar: true,
     appBundleId: 'com.speechly.clone',
     appCategoryType: 'public.app-category.productivity',
     name: 'Speechly Clone',
     executableName: 'speechly-clone',
-    extraResource: ['./resources/icons', './node_modules/sql.js/dist/sql-wasm.wasm'],
+    extraResource: ['./resources/icons'],
     icon: './resources/icons/icon',
     osxSign: process.env.APPLE_ID ? {} : undefined,
     osxNotarize: process.env.APPLE_ID ? {
