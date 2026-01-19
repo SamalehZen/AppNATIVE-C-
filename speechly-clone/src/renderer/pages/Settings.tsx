@@ -8,7 +8,7 @@ import { HotkeyInput } from '../components/HotkeyInput';
 import { ApiKeyInput } from '../components/ApiKeyInput';
 import { Toggle } from '../components/Toggle';
 import { useSettings } from '../stores/settings';
-import { SUPPORTED_LANGUAGES } from '../../shared/types';
+import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel } from '../../shared/types';
 import { HISTORY_RETENTION_OPTIONS, THEME_OPTIONS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
@@ -140,6 +140,24 @@ export const Settings: React.FC = () => {
                 Google AI Studio <ExternalLink size={12} />
               </a>
             </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              Modèle Gemini
+            </label>
+            <select
+              value={settings.geminiModel}
+              onChange={(e) => updateSettings({ geminiModel: e.target.value as GeminiModel })}
+              className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                        focus:border-accent-purple focus:outline-none cursor-pointer"
+            >
+              {GEMINI_MODELS.map((model) => (
+                <option key={model.value} value={model.value}>
+                  {model.name} - {model.description}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center justify-between">

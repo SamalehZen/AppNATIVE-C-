@@ -1,6 +1,28 @@
+export type GeminiModel = 
+  | 'gemini-3-flash-preview'
+  | 'gemini-2.5-flash-preview-09-2025'
+  | 'gemini-2.5-flash-lite-preview-09-2025'
+  | 'gemini-2.0-flash'
+  | 'gemini-2.0-flash-lite'
+  | 'gemini-1.5-flash'
+  | 'gemini-1.5-flash-8b'
+  | 'gemini-1.5-pro';
+
+export const GEMINI_MODELS: { value: GeminiModel; name: string; description: string }[] = [
+  { value: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', description: 'Dernier modèle, très puissant (preview)' },
+  { value: 'gemini-2.5-flash-preview-09-2025', name: 'Gemini 2.5 Flash Preview', description: 'Nouvelle génération (preview)' },
+  { value: 'gemini-2.5-flash-lite-preview-09-2025', name: 'Gemini 2.5 Flash Lite Preview', description: 'Léger nouvelle gén (preview)' },
+  { value: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Rapide et intelligent (recommandé)' },
+  { value: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', description: 'Ultra rapide, moins précis' },
+  { value: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Équilibré vitesse/qualité' },
+  { value: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash 8B', description: 'Léger et économique' },
+  { value: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Plus précis, plus lent' },
+];
+
 export interface Settings {
   id: number;
   geminiApiKey: string;
+  geminiModel: GeminiModel;
   defaultLanguage: string;
   autoDetectLanguage: boolean;
   hotkeyRecord: string;

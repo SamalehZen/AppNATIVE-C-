@@ -12,6 +12,7 @@ interface SettingsStore {
 const defaultSettings: Settings = {
   id: 1,
   geminiApiKey: '',
+  geminiModel: 'gemini-2.0-flash',
   defaultLanguage: 'fr-FR',
   autoDetectLanguage: false,
   hotkeyRecord: 'CommandOrControl+Shift+Space',
