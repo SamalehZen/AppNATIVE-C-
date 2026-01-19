@@ -130,7 +130,9 @@ export async function cleanupTranscript(
   }
 
   try {
-    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const settings = getSettings();
+    const modelName = settings?.geminiModel || 'gemini-2.0-flash';
+    const model = ai.getGenerativeModel({ model: modelName });
     const prompt = buildLegacyPrompt(text, options);
 
     const result = await model.generateContent(prompt);
@@ -188,7 +190,9 @@ export async function cleanupWithContext(
   try {
     const preprocessedText = applyDictionaryPreprocessing(text, context.type);
 
-    const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const settings = getSettings();
+    const modelName = settings?.geminiModel || 'gemini-2.0-flash';
+    const model = ai.getGenerativeModel({ model: modelName });
     const prompt = buildContextAwarePrompt(preprocessedText, context, language);
 
     const result = await model.generateContent(prompt);

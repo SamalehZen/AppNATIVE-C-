@@ -15,6 +15,7 @@ export function initDatabase(): void {
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY DEFAULT 1,
       geminiApiKey TEXT DEFAULT '',
+      geminiModel TEXT DEFAULT 'gemini-2.0-flash',
       defaultLanguage TEXT DEFAULT 'fr-FR',
       autoDetectLanguage INTEGER DEFAULT 0,
       hotkeyRecord TEXT DEFAULT 'CommandOrControl+Shift+Space',
@@ -60,6 +61,7 @@ function migrateDatabase(): void {
   const columnNames = columns.map(c => c.name);
 
   const newColumns = [
+    { name: 'geminiModel', def: "TEXT DEFAULT 'gemini-2.0-flash'" },
     { name: 'autoDetectLanguage', def: 'INTEGER DEFAULT 0' },
     { name: 'hotkeyInsert', def: "TEXT DEFAULT 'CommandOrControl+Shift+V'" },
     { name: 'contextAwareCleanup', def: 'INTEGER DEFAULT 1' },
@@ -118,6 +120,7 @@ export function getSettings(): Settings | null {
   return {
     id: row.id,
     geminiApiKey: row.geminiApiKey || '',
+    geminiModel: row.geminiModel || 'gemini-2.0-flash',
     defaultLanguage: row.defaultLanguage || 'fr-FR',
     autoDetectLanguage: Boolean(row.autoDetectLanguage),
     hotkeyRecord: row.hotkeyRecord || 'CommandOrControl+Shift+Space',
@@ -139,6 +142,7 @@ export function saveSettings(settings: Partial<Settings>): void {
   
   const fieldMap: Record<string, { column: string; transform?: (v: any) => any }> = {
     geminiApiKey: { column: 'geminiApiKey' },
+    geminiModel: { column: 'geminiModel' },
     defaultLanguage: { column: 'defaultLanguage' },
     autoDetectLanguage: { column: 'autoDetectLanguage', transform: (v) => v ? 1 : 0 },
     hotkeyRecord: { column: 'hotkeyRecord' },
