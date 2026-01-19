@@ -1,5 +1,5 @@
 import initSqlJs, { Database, SqlValue } from 'sql.js';
-import { app } from 'electron';
+import { app, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { Settings, TranscriptHistory, CustomDictionary, GeminiModel } from '../shared/types';
@@ -7,6 +7,12 @@ import { CONTEXT_NAMES } from '../shared/constants';
 
 let db: Database | null = null;
 let dbPath: string = '';
+
+function logError(message: string): void {
+  const logPath = path.join(app.getPath('userData'), 'error.log');
+  const timestamp = new Date().toISOString();
+  fs.appendFileSync(logPath, `[${timestamp}] ${message}\n`);
+}
 
 function getDbPath(): string {
   if (!dbPath) {
@@ -23,83 +29,124 @@ function saveDatabase(): void {
   }
 }
 
-function getWasmPath(): string {
-  const isDev = !app.isPackaged;
-  if (isDev) {
-    return path.join(__dirname, '../../node_modules/sql.js/dist/sql-wasm.wasm');
+function findWasmFile(): string | null {
+  const possiblePaths = [
+    path.join(process.resourcesPath || '', 'sql-wasm.wasm'),
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+    path.join(__dirname, '..', '..', 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+    path.join(__dirname, 'sql-wasm.wasm'),
+    path.join(app.getAppPath(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+  ];
+
+  for (const p of possiblePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        logError(`Found WASM at: ${p}`);
+        return p;
+      }
+    } catch (e) {
+      continue;
+    }
   }
-  return path.join(process.resourcesPath, 'sql-wasm.wasm');
+
+  logError(`WASM not found. Tried paths: ${possiblePaths.join(', ')}`);
+  return null;
 }
 
 export async function initDatabase(): Promise<void> {
-  const wasmBuffer = fs.readFileSync(getWasmPath());
-  const wasmBinary = wasmBuffer.buffer.slice(wasmBuffer.byteOffset, wasmBuffer.byteOffset + wasmBuffer.byteLength);
-  const SQL = await initSqlJs({ wasmBinary });
-  const filePath = getDbPath();
-  
   try {
-    if (fs.existsSync(filePath)) {
-      const fileBuffer = fs.readFileSync(filePath);
-      db = new SQL.Database(fileBuffer);
+    logError(`App packaged: ${app.isPackaged}`);
+    logError(`Resources path: ${process.resourcesPath}`);
+    logError(`App path: ${app.getAppPath()}`);
+    logError(`__dirname: ${__dirname}`);
+
+    const wasmPath = findWasmFile();
+    
+    let SQL;
+    if (wasmPath) {
+      const wasmBuffer = fs.readFileSync(wasmPath);
+      const wasmBinary = wasmBuffer.buffer.slice(wasmBuffer.byteOffset, wasmBuffer.byteOffset + wasmBuffer.byteLength);
+      SQL = await initSqlJs({ wasmBinary });
     } else {
+      logError('Trying to init sql.js without WASM (will fetch from CDN)');
+      SQL = await initSqlJs({
+        locateFile: (file: string) => `https://sql.js.org/dist/${file}`
+      });
+    }
+    
+    const filePath = getDbPath();
+  
+    try {
+      if (fs.existsSync(filePath)) {
+        const fileBuffer = fs.readFileSync(filePath);
+        db = new SQL.Database(fileBuffer);
+      } else {
+        db = new SQL.Database();
+      }
+    } catch (e) {
+      logError(`Error loading existing database: ${e}`);
       db = new SQL.Database();
     }
-  } catch (e) {
-    db = new SQL.Database();
-  }
   
-  db.run(`
-    CREATE TABLE IF NOT EXISTS settings (
-      id INTEGER PRIMARY KEY DEFAULT 1,
-      geminiApiKey TEXT DEFAULT '',
-      geminiModel TEXT DEFAULT 'gemini-2.0-flash',
-      defaultLanguage TEXT DEFAULT 'fr-FR',
-      autoDetectLanguage INTEGER DEFAULT 0,
-      hotkeyRecord TEXT DEFAULT 'CommandOrControl+Shift+Space',
-      hotkeyInsert TEXT DEFAULT 'CommandOrControl+Shift+V',
-      autoCleanup INTEGER DEFAULT 1,
-      contextAwareCleanup INTEGER DEFAULT 1,
-      saveHistory INTEGER DEFAULT 1,
-      historyRetentionDays INTEGER DEFAULT 30,
-      theme TEXT DEFAULT 'dark',
-      minimizeToTray INTEGER DEFAULT 1,
-      launchAtStartup INTEGER DEFAULT 0,
-      CHECK (id = 1)
-    )
-  `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS settings (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        geminiApiKey TEXT DEFAULT '',
+        geminiModel TEXT DEFAULT 'gemini-2.0-flash',
+        defaultLanguage TEXT DEFAULT 'fr-FR',
+        autoDetectLanguage INTEGER DEFAULT 0,
+        hotkeyRecord TEXT DEFAULT 'CommandOrControl+Shift+Space',
+        hotkeyInsert TEXT DEFAULT 'CommandOrControl+Shift+V',
+        autoCleanup INTEGER DEFAULT 1,
+        contextAwareCleanup INTEGER DEFAULT 1,
+        saveHistory INTEGER DEFAULT 1,
+        historyRetentionDays INTEGER DEFAULT 30,
+        theme TEXT DEFAULT 'dark',
+        minimizeToTray INTEGER DEFAULT 1,
+        launchAtStartup INTEGER DEFAULT 0,
+        CHECK (id = 1)
+      )
+    `);
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS transcript_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      original TEXT NOT NULL,
-      cleaned TEXT NOT NULL,
-      language TEXT NOT NULL,
-      context TEXT DEFAULT 'general',
-      contextName TEXT DEFAULT 'Général',
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      wordCount INTEGER DEFAULT 0
-    )
-  `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS transcript_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original TEXT NOT NULL,
+        cleaned TEXT NOT NULL,
+        language TEXT NOT NULL,
+        context TEXT DEFAULT 'general',
+        contextName TEXT DEFAULT 'Général',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        wordCount INTEGER DEFAULT 0
+      )
+    `);
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS custom_dictionary (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      term TEXT NOT NULL,
-      replacement TEXT NOT NULL,
-      context TEXT DEFAULT 'all',
-      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS custom_dictionary (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        term TEXT NOT NULL,
+        replacement TEXT NOT NULL,
+        context TEXT DEFAULT 'all',
+        createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-  const countResult = db.exec("SELECT COUNT(*) as count FROM settings WHERE id = 1");
-  const count = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] as number : 0;
-  if (count === 0) {
-    db.run("INSERT INTO settings (id) VALUES (1)");
+    const countResult = db.exec("SELECT COUNT(*) as count FROM settings WHERE id = 1");
+    const count = countResult.length > 0 && countResult[0].values.length > 0 ? countResult[0].values[0][0] as number : 0;
+    if (count === 0) {
+      db.run("INSERT INTO settings (id) VALUES (1)");
+    }
+
+    migrateDatabase();
+    cleanupOldHistory();
+    saveDatabase();
+    logError('Database initialized successfully');
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    logError(`FATAL: Database initialization failed: ${errorMsg}`);
+    dialog.showErrorBox('Database Error', `Failed to initialize database: ${errorMsg}\n\nCheck ${path.join(app.getPath('userData'), 'error.log')} for details.`);
+    throw error;
   }
-
-  migrateDatabase();
-  cleanupOldHistory();
-  saveDatabase();
 }
 
 function migrateDatabase(): void {
