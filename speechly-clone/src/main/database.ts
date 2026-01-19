@@ -32,7 +32,8 @@ function getWasmPath(): string {
 }
 
 export async function initDatabase(): Promise<void> {
-  const wasmBinary = fs.readFileSync(getWasmPath());
+  const wasmBuffer = fs.readFileSync(getWasmPath());
+  const wasmBinary = wasmBuffer.buffer.slice(wasmBuffer.byteOffset, wasmBuffer.byteOffset + wasmBuffer.byteLength);
   const SQL = await initSqlJs({ wasmBinary });
   const filePath = getDbPath();
   
