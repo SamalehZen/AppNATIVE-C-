@@ -1,0 +1,246 @@
+{
+  "contexts": {
+    "email": {
+      "name": "Email",
+      "icon": "mail",
+      "description": "Client email détecté",
+      "apps": {
+        "windows": [
+          { "process": "OUTLOOK.EXE", "name": "Microsoft Outlook" },
+          { "process": "Thunderbird.exe", "name": "Mozilla Thunderbird" },
+          { "process": "mailspring.exe", "name": "Mailspring" }
+        ],
+        "macos": [
+          { "bundleId": "com.microsoft.Outlook", "name": "Microsoft Outlook" },
+          { "bundleId": "com.apple.mail", "name": "Apple Mail" },
+          { "bundleId": "com.readdle.smartemail-Mac", "name": "Spark" },
+          { "bundleId": "org.mozilla.thunderbird", "name": "Thunderbird" }
+        ],
+        "web": [
+          { "urlPattern": "mail.google.com", "name": "Gmail" },
+          { "urlPattern": "outlook.live.com", "name": "Outlook Web" },
+          { "urlPattern": "outlook.office.com", "name": "Outlook 365" },
+          { "urlPattern": "outlook.office365.com", "name": "Outlook 365" },
+          { "urlPattern": "mail.yahoo.com", "name": "Yahoo Mail" },
+          { "urlPattern": "proton.me/mail", "name": "ProtonMail" },
+          { "urlPattern": "mail.proton.me", "name": "ProtonMail" }
+        ]
+      }
+    },
+    "chat": {
+      "name": "Messagerie",
+      "icon": "message-circle",
+      "description": "Application de chat détectée",
+      "apps": {
+        "windows": [
+          { "process": "Slack.exe", "name": "Slack" },
+          { "process": "Discord.exe", "name": "Discord" },
+          { "process": "Teams.exe", "name": "Microsoft Teams" },
+          { "process": "ms-teams.exe", "name": "Microsoft Teams" },
+          { "process": "Telegram.exe", "name": "Telegram" },
+          { "process": "WhatsApp.exe", "name": "WhatsApp" },
+          { "process": "Signal.exe", "name": "Signal" }
+        ],
+        "macos": [
+          { "bundleId": "com.tinyspeck.slackmacgap", "name": "Slack" },
+          { "bundleId": "com.hnc.Discord", "name": "Discord" },
+          { "bundleId": "com.microsoft.teams", "name": "Microsoft Teams" },
+          { "bundleId": "com.microsoft.teams2", "name": "Microsoft Teams" },
+          { "bundleId": "ru.keepcoder.Telegram", "name": "Telegram" },
+          { "bundleId": "net.whatsapp.WhatsApp", "name": "WhatsApp" },
+          { "bundleId": "com.apple.MobileSMS", "name": "Messages" },
+          { "bundleId": "org.whispersystems.signal-desktop", "name": "Signal" }
+        ],
+        "web": [
+          { "urlPattern": "slack.com", "name": "Slack" },
+          { "urlPattern": "app.slack.com", "name": "Slack" },
+          { "urlPattern": "discord.com", "name": "Discord" },
+          { "urlPattern": "teams.microsoft.com", "name": "Teams" },
+          { "urlPattern": "web.whatsapp.com", "name": "WhatsApp Web" },
+          { "urlPattern": "messenger.com", "name": "Messenger" },
+          { "urlPattern": "web.telegram.org", "name": "Telegram Web" }
+        ]
+      }
+    },
+    "code": {
+      "name": "Éditeur de code",
+      "icon": "code",
+      "description": "IDE ou éditeur de code détecté",
+      "apps": {
+        "windows": [
+          { "process": "Code.exe", "name": "VS Code" },
+          { "process": "devenv.exe", "name": "Visual Studio" },
+          { "process": "idea64.exe", "name": "IntelliJ IDEA" },
+          { "process": "idea.exe", "name": "IntelliJ IDEA" },
+          { "process": "webstorm64.exe", "name": "WebStorm" },
+          { "process": "pycharm64.exe", "name": "PyCharm" },
+          { "process": "sublime_text.exe", "name": "Sublime Text" },
+          { "process": "notepad++.exe", "name": "Notepad++" },
+          { "process": "cursor.exe", "name": "Cursor" },
+          { "process": "atom.exe", "name": "Atom" },
+          { "process": "zed.exe", "name": "Zed" }
+        ],
+        "macos": [
+          { "bundleId": "com.microsoft.VSCode", "name": "VS Code" },
+          { "bundleId": "com.jetbrains.intellij", "name": "IntelliJ IDEA" },
+          { "bundleId": "com.jetbrains.WebStorm", "name": "WebStorm" },
+          { "bundleId": "com.jetbrains.pycharm", "name": "PyCharm" },
+          { "bundleId": "com.sublimetext.4", "name": "Sublime Text" },
+          { "bundleId": "com.sublimetext.3", "name": "Sublime Text" },
+          { "bundleId": "com.apple.dt.Xcode", "name": "Xcode" },
+          { "bundleId": "com.todesktop.230313mzl4w4u92", "name": "Cursor" },
+          { "bundleId": "dev.zed.Zed", "name": "Zed" },
+          { "bundleId": "com.github.atom", "name": "Atom" },
+          { "bundleId": "com.visualstudio.code.oss", "name": "VS Code OSS" }
+        ],
+        "web": [
+          { "urlPattern": "github.dev", "name": "GitHub Codespaces" },
+          { "urlPattern": "vscode.dev", "name": "VS Code Web" },
+          { "urlPattern": "codesandbox.io", "name": "CodeSandbox" },
+          { "urlPattern": "replit.com", "name": "Replit" },
+          { "urlPattern": "stackblitz.com", "name": "StackBlitz" },
+          { "urlPattern": "codepen.io", "name": "CodePen" },
+          { "urlPattern": "jsfiddle.net", "name": "JSFiddle" }
+        ]
+      }
+    },
+    "document": {
+      "name": "Document",
+      "icon": "file-text",
+      "description": "Traitement de texte détecté",
+      "apps": {
+        "windows": [
+          { "process": "WINWORD.EXE", "name": "Microsoft Word" },
+          { "process": "wordpad.exe", "name": "WordPad" },
+          { "process": "notepad.exe", "name": "Notepad" },
+          { "process": "POWERPNT.EXE", "name": "PowerPoint" },
+          { "process": "libreoffice.exe", "name": "LibreOffice" },
+          { "process": "soffice.exe", "name": "LibreOffice" }
+        ],
+        "macos": [
+          { "bundleId": "com.microsoft.Word", "name": "Microsoft Word" },
+          { "bundleId": "com.microsoft.Powerpoint", "name": "PowerPoint" },
+          { "bundleId": "com.apple.Pages", "name": "Pages" },
+          { "bundleId": "com.apple.TextEdit", "name": "TextEdit" },
+          { "bundleId": "com.apple.iWork.Keynote", "name": "Keynote" },
+          { "bundleId": "org.libreoffice.script", "name": "LibreOffice" }
+        ],
+        "web": [
+          { "urlPattern": "docs.google.com/document", "name": "Google Docs" },
+          { "urlPattern": "docs.google.com/presentation", "name": "Google Slides" },
+          { "urlPattern": "notion.so", "name": "Notion" },
+          { "urlPattern": "dropbox.com/scl", "name": "Dropbox Paper" },
+          { "urlPattern": "coda.io", "name": "Coda" },
+          { "urlPattern": "craft.do", "name": "Craft" }
+        ]
+      }
+    },
+    "browser": {
+      "name": "Navigateur",
+      "icon": "globe",
+      "description": "Navigateur web (contexte général)",
+      "apps": {
+        "windows": [
+          { "process": "chrome.exe", "name": "Google Chrome" },
+          { "process": "firefox.exe", "name": "Firefox" },
+          { "process": "msedge.exe", "name": "Microsoft Edge" },
+          { "process": "brave.exe", "name": "Brave" },
+          { "process": "arc.exe", "name": "Arc" },
+          { "process": "opera.exe", "name": "Opera" },
+          { "process": "vivaldi.exe", "name": "Vivaldi" }
+        ],
+        "macos": [
+          { "bundleId": "com.google.Chrome", "name": "Google Chrome" },
+          { "bundleId": "org.mozilla.firefox", "name": "Firefox" },
+          { "bundleId": "com.apple.Safari", "name": "Safari" },
+          { "bundleId": "company.thebrowser.Browser", "name": "Arc" },
+          { "bundleId": "com.brave.Browser", "name": "Brave" },
+          { "bundleId": "com.microsoft.edgemac", "name": "Microsoft Edge" },
+          { "bundleId": "com.operasoftware.Opera", "name": "Opera" },
+          { "bundleId": "com.vivaldi.Vivaldi", "name": "Vivaldi" }
+        ]
+      }
+    },
+    "social": {
+      "name": "Réseaux sociaux",
+      "icon": "share-2",
+      "description": "Réseau social détecté",
+      "apps": {
+        "web": [
+          { "urlPattern": "twitter.com", "name": "Twitter/X" },
+          { "urlPattern": "x.com", "name": "Twitter/X" },
+          { "urlPattern": "linkedin.com", "name": "LinkedIn" },
+          { "urlPattern": "facebook.com", "name": "Facebook" },
+          { "urlPattern": "instagram.com", "name": "Instagram" },
+          { "urlPattern": "reddit.com", "name": "Reddit" },
+          { "urlPattern": "threads.net", "name": "Threads" },
+          { "urlPattern": "mastodon", "name": "Mastodon" },
+          { "urlPattern": "bsky.app", "name": "Bluesky" }
+        ]
+      }
+    },
+    "ai": {
+      "name": "Assistant IA",
+      "icon": "bot",
+      "description": "Chat IA détecté",
+      "apps": {
+        "windows": [
+          { "process": "ChatGPT.exe", "name": "ChatGPT" }
+        ],
+        "macos": [
+          { "bundleId": "com.openai.chat", "name": "ChatGPT" },
+          { "bundleId": "com.anthropic.claudefordesktop", "name": "Claude" }
+        ],
+        "web": [
+          { "urlPattern": "chat.openai.com", "name": "ChatGPT" },
+          { "urlPattern": "chatgpt.com", "name": "ChatGPT" },
+          { "urlPattern": "claude.ai", "name": "Claude" },
+          { "urlPattern": "gemini.google.com", "name": "Gemini" },
+          { "urlPattern": "bard.google.com", "name": "Gemini" },
+          { "urlPattern": "perplexity.ai", "name": "Perplexity" },
+          { "urlPattern": "poe.com", "name": "Poe" },
+          { "urlPattern": "copilot.microsoft.com", "name": "Copilot" }
+        ]
+      }
+    },
+    "spreadsheet": {
+      "name": "Tableur",
+      "icon": "table",
+      "description": "Application de tableur détectée",
+      "apps": {
+        "windows": [
+          { "process": "EXCEL.EXE", "name": "Microsoft Excel" }
+        ],
+        "macos": [
+          { "bundleId": "com.microsoft.Excel", "name": "Microsoft Excel" },
+          { "bundleId": "com.apple.iWork.Numbers", "name": "Numbers" }
+        ],
+        "web": [
+          { "urlPattern": "docs.google.com/spreadsheets", "name": "Google Sheets" },
+          { "urlPattern": "airtable.com", "name": "Airtable" }
+        ]
+      }
+    },
+    "terminal": {
+      "name": "Terminal",
+      "icon": "terminal",
+      "description": "Terminal détecté",
+      "apps": {
+        "windows": [
+          { "process": "WindowsTerminal.exe", "name": "Windows Terminal" },
+          { "process": "cmd.exe", "name": "Command Prompt" },
+          { "process": "powershell.exe", "name": "PowerShell" },
+          { "process": "pwsh.exe", "name": "PowerShell Core" }
+        ],
+        "macos": [
+          { "bundleId": "com.apple.Terminal", "name": "Terminal" },
+          { "bundleId": "com.googlecode.iterm2", "name": "iTerm2" },
+          { "bundleId": "dev.warp.Warp-Stable", "name": "Warp" },
+          { "bundleId": "co.zeit.hyper", "name": "Hyper" },
+          { "bundleId": "com.github.alacritty", "name": "Alacritty" }
+        ]
+      }
+    }
+  },
+  "defaultContext": "general"
+}
