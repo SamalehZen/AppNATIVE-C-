@@ -15,7 +15,7 @@ const config: ForgeConfig = {
     appCategoryType: 'public.app-category.productivity',
     name: 'Speechly Clone',
     executableName: 'speechly-clone',
-    extraResource: ['./resources/icons'],
+    extraResource: ['./resources/icons', './node_modules/sql.js/dist/sql-wasm.wasm'],
     icon: './resources/icons/icon',
     osxSign: process.env.APPLE_ID ? {} : undefined,
     osxNotarize: process.env.APPLE_ID ? {
