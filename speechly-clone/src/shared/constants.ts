@@ -49,6 +49,7 @@ export const THEME_OPTIONS = [
 export const NAV_ITEMS = [
   { path: '/', icon: 'Mic', label: 'Dictée' },
   { path: '/snippets', icon: 'Zap', label: 'Snippets' },
+  { path: '/analytics', icon: 'BarChart3', label: 'Analytics' },
   { path: '/history', icon: 'Clock', label: 'Historique' },
   { path: '/dictionary', icon: 'BookOpen', label: 'Dictionnaire' },
   { path: '/profile', icon: 'User', label: 'Profil' },

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { DetectedContext, SnippetReplacement, DictationMode } from '../../shared/types';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { DetectedContext, SnippetReplacement, DictationMode, DictationEvent } from '../../shared/types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useGeminiCleanup } from '../hooks/useGeminiCleanup';
 import { useSettings } from '../stores/settings';
@@ -50,6 +50,8 @@ export const Home: React.FC = () => {
   } = useGeminiCleanup();
 
   const activeContext = manualContext || detectedContext;
+  const recordingStartTime = useRef<number>(0);
+  const usedSnippetsRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (settings?.defaultLanguage) {
@@ -82,9 +84,37 @@ export const Home: React.FC = () => {
     }
   }, [manualContext, setContext]);
 
+  const trackDictation = useCallback(async (
+    text: string,
+    duration: number,
+    wasCleanedUp: boolean,
+    snippets: string[]
+  ) => {
+    const words = text.split(/\s+/).filter((w) => w.length > 0);
+    const event: DictationEvent = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      duration,
+      wordCount: words.length,
+      characterCount: text.length,
+      language,
+      context: activeContext?.type || 'general',
+      mode: currentMode,
+      wasCleanedUp,
+      wasTranslated: false,
+      snippetsUsed: snippets,
+    };
+    try {
+      await window.electronAPI.trackDictationEvent(event);
+    } catch (error) {
+      console.error('Failed to track dictation event:', error);
+    }
+  }, [language, activeContext, currentMode]);
+
   const handleToggleRecording = useCallback(async () => {
     if (isListening) {
       stopListening();
+      const duration = Date.now() - recordingStartTime.current;
       if (transcript) {
         const snippetResult = await window.electronAPI.processSnippets(transcript);
         const textToClean = snippetResult.processedText;
@@ -93,9 +123,12 @@ export const Home: React.FC = () => {
           setSnippetReplacements(snippetResult.replacements);
           setShowSnippetNotification(true);
           setTimeout(() => setShowSnippetNotification(false), 5000);
+          usedSnippetsRef.current = snippetResult.replacements.map((r) => r.trigger);
         }
         
+        let wasCleanedUp = false;
         if (settings?.autoCleanup) {
+          wasCleanedUp = true;
           if (currentMode !== 'auto') {
             await cleanupWithMode(textToClean, currentMode, language);
           } else if (manualContext) {
@@ -104,12 +137,17 @@ export const Home: React.FC = () => {
             await cleanupWithAutoContext(textToClean, language);
           }
         }
+
+        await trackDictation(textToClean, duration, wasCleanedUp, usedSnippetsRef.current);
+        usedSnippetsRef.current = [];
       }
     } else {
       resetTranscript();
       resetCleanup();
       setManualContext(null);
       setSnippetReplacements([]);
+      usedSnippetsRef.current = [];
+      recordingStartTime.current = Date.now();
       if (currentMode === 'auto') {
         await detectContextBeforeDictation();
       }
@@ -129,6 +167,7 @@ export const Home: React.FC = () => {
     resetCleanup,
     detectContextBeforeDictation,
     manualContext,
+    trackDictation,
   ]);
 
   useEffect(() => {

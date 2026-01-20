@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Mic, Clock, BookOpen, Settings, Zap, User } from 'lucide-react';
+import { Mic, Clock, BookOpen, Settings, Zap, User, BarChart3 } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Mic, label: 'Dictée' },
   { path: '/snippets', icon: Zap, label: 'Snippets' },
+  { path: '/analytics', icon: BarChart3, label: 'Analytics' },
   { path: '/history', icon: Clock, label: 'Historique' },
   { path: '/dictionary', icon: BookOpen, label: 'Dictionnaire' },
   { path: '/profile', icon: User, label: 'Profil' },

@@ -209,11 +209,53 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { code: 'tr-TR', name: 'Türkçe' },
 ];
 
+export interface DictationEvent {
+  id: string;
+  timestamp: number;
+  duration: number;
+  wordCount: number;
+  characterCount: number;
+  language: string;
+  context: string;
+  mode: DictationMode;
+  wasCleanedUp: boolean;
+  wasTranslated: boolean;
+  snippetsUsed: string[];
+}
+
 export interface DailyStats {
   date: string;
   wordCount: number;
-  transcriptCount: number;
+  characterCount: number;
+  sessionCount: number;
+  totalDuration: number;
+  averageSpeed: number;
+  contexts: Record<string, number>;
+  languages: Record<string, number>;
+  modes: Record<string, number>;
 }
+
+export interface AnalyticsSummary {
+  totalWords: number;
+  totalCharacters: number;
+  totalSessions: number;
+  totalDuration: number;
+  averageWordsPerDay: number;
+  averageSessionDuration: number;
+  averageSpeed: number;
+  estimatedTimeSaved: number;
+  estimatedTimeSavedFormatted: string;
+  currentStreak: number;
+  longestStreak: number;
+  topContexts: Array<{ context: string; count: number; percentage: number }>;
+  topLanguages: Array<{ language: string; count: number; percentage: number }>;
+  topModes: Array<{ mode: string; count: number; percentage: number }>;
+  topSnippets: Array<{ snippet: string; count: number }>;
+  hourlyDistribution: number[];
+  weeklyDistribution: number[];
+}
+
+export type AnalyticsPeriod = 'week' | 'month' | 'year' | 'all';
 
 export interface ElectronAPI {
   getSettings: () => Promise<Settings | null>;
@@ -254,6 +296,11 @@ export interface ElectronAPI {
   getProfile: () => Promise<UserProfile | null>;
   saveProfile: (profile: UserProfile) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  trackDictationEvent: (event: DictationEvent) => Promise<void>;
+  getAnalyticsSummary: (period: AnalyticsPeriod) => Promise<AnalyticsSummary>;
+  getDailyStats: (date: string) => Promise<DailyStats | null>;
+  getStatsRange: (startDate: string, endDate: string) => Promise<DailyStats[]>;
+  exportAnalytics: (format: 'json' | 'csv', period: AnalyticsPeriod) => Promise<string>;
 }
 
 export const SNIPPET_CATEGORIES: { value: SnippetCategory; label: string; icon: string }[] = [

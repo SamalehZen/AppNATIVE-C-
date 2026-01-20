@@ -21,10 +21,15 @@ import {
   processSnippets,
   getUserProfile,
   saveUserProfile,
-  updateUserProfile
+  updateUserProfile,
+  trackDictationEvent,
+  getAnalyticsSummary,
+  getDailyStats,
+  getStatsRange
 } from './database';
 import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto, cleanupWithMode } from './gemini';
-import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode } from '../shared/types';
+import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode, DictationEvent, AnalyticsPeriod } from '../shared/types';
+import { exportAnalytics } from './services/analytics-export';
 import { getContextDetector } from './services/context-detector';
 import { updateHotkey, setAutoLaunch, getTrayManager } from './index';
 
@@ -282,5 +287,25 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('profile:update', async (_, updates: Partial<UserProfile>) => {
     updateUserProfile(updates);
+  });
+
+  ipcMain.handle('analytics:track', async (_, event: DictationEvent) => {
+    trackDictationEvent(event);
+  });
+
+  ipcMain.handle('analytics:summary', async (_, period: AnalyticsPeriod) => {
+    return getAnalyticsSummary(period);
+  });
+
+  ipcMain.handle('analytics:daily', async (_, date: string) => {
+    return getDailyStats(date);
+  });
+
+  ipcMain.handle('analytics:range', async (_, start: string, end: string) => {
+    return getStatsRange(start, end);
+  });
+
+  ipcMain.handle('analytics:export', async (_, format: 'json' | 'csv', period: AnalyticsPeriod) => {
+    return exportAnalytics(format, period);
   });
 }
