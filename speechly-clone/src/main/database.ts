@@ -1,7 +1,8 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel } from '../shared/types';
+import { DEFAULT_TRANSLATION_SETTINGS } from '../shared/constants';
 import { CONTEXT_NAMES } from '../shared/constants';
 import { analyticsService } from './services/analytics-service';
 
@@ -78,6 +79,7 @@ const DEFAULT_SETTINGS: Omit<Settings, 'appVersion'> = {
   theme: 'dark',
   minimizeToTray: true,
   launchAtStartup: false,
+  translation: DEFAULT_TRANSLATION_SETTINGS,
 };
 
 export async function initDatabase(): Promise<void> {
@@ -152,6 +154,7 @@ export function getSettings(): Settings | null {
     geminiModel: isValidGeminiModel(data.settings.geminiModel) ? data.settings.geminiModel : 'gemini-2.0-flash',
     theme: isValidTheme(data.settings.theme) ? data.settings.theme : 'dark',
     appVersion: app.getVersion(),
+    translation: data.settings.translation || DEFAULT_TRANSLATION_SETTINGS,
   };
 }
 
@@ -169,6 +172,9 @@ export function saveTranscript(transcriptData: {
   cleaned: string;
   language: string;
   context: string;
+  translatedText?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }): void {
   if (data.settings && !data.settings.saveHistory) return;
 
@@ -184,6 +190,9 @@ export function saveTranscript(transcriptData: {
     contextName,
     createdAt: new Date().toISOString(),
     wordCount,
+    translatedText: transcriptData.translatedText,
+    sourceLanguage: transcriptData.sourceLanguage,
+    targetLanguage: transcriptData.targetLanguage,
   };
   
   data.history.unshift(newItem);

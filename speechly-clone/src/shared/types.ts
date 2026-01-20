@@ -1,5 +1,30 @@
 export type DictationMode = 'auto' | 'raw' | 'email' | 'prompt' | 'todo' | 'notes';
 
+export type FormalityLevel = 'formal' | 'neutral' | 'informal';
+
+export interface TranslationSettings {
+  enabled: boolean;
+  sourceLanguage: string;
+  targetLanguage: string;
+  preserveFormatting: boolean;
+  formalityLevel: FormalityLevel;
+}
+
+export interface TranslationResult {
+  originalText: string;
+  translatedText: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  confidence: number;
+  processingTime: number;
+}
+
+export interface TranslationOptions {
+  formalityLevel?: FormalityLevel;
+  preserveFormatting?: boolean;
+  context?: 'email' | 'chat' | 'document' | 'general';
+}
+
 export type ModeOutputFormat = 'plain' | 'markdown' | 'structured';
 
 export interface ModeConfig {
@@ -86,6 +111,7 @@ export interface Settings {
   minimizeToTray: boolean;
   launchAtStartup: boolean;
   appVersion: string;
+  translation: TranslationSettings;
 }
 
 export interface TranscriptHistory {
@@ -97,6 +123,9 @@ export interface TranscriptHistory {
   contextName: string;
   createdAt: string;
   wordCount: number;
+  translatedText?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
 }
 
 export interface CustomDictionary {
@@ -285,6 +314,8 @@ export interface ElectronAPI {
   cleanupWithContext: (text: string, context: DetectedContext, language?: string) => Promise<ContextCleanupResult>;
   cleanupTranscriptAuto: (text: string, language?: string) => Promise<ContextCleanupResult>;
   cleanupWithMode: (text: string, mode: DictationMode, language?: string) => Promise<ContextCleanupResult>;
+  translateText: (text: string, sourceLanguage: string, targetLanguage: string, options?: TranslationOptions) => Promise<TranslationResult>;
+  detectLanguage: (text: string) => Promise<{ language: string; confidence: number }>;
   updateHotkey: (type: 'record' | 'insert', hotkey: string) => Promise<void>;
   setAutoLaunch: (enabled: boolean) => Promise<void>;
   onToggleRecording: (callback: () => void) => void;

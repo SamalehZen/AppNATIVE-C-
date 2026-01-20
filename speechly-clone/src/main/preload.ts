@@ -17,6 +17,8 @@ import {
   AnalyticsSummary,
   DailyStats,
   AnalyticsPeriod,
+  TranslationResult,
+  TranslationOptions,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -181,4 +183,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   exportAnalytics: (format: 'json' | 'csv', period: AnalyticsPeriod): Promise<string> =>
     ipcRenderer.invoke('analytics:export', format, period),
+
+  translateText: (
+    text: string,
+    sourceLanguage: string,
+    targetLanguage: string,
+    options?: TranslationOptions
+  ): Promise<TranslationResult> =>
+    ipcRenderer.invoke('translate:text', text, sourceLanguage, targetLanguage, options),
+
+  detectLanguage: (text: string): Promise<{ language: string; confidence: number }> =>
+    ipcRenderer.invoke('translate:detect', text),
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { DetectedContext, SnippetReplacement, DictationMode, DictationEvent } from '../../shared/types';
+import { DetectedContext, SnippetReplacement, DictationMode, DictationEvent, TranslationResult } from '../../shared/types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useGeminiCleanup } from '../hooks/useGeminiCleanup';
 import { useSettings } from '../stores/settings';
@@ -10,15 +10,19 @@ import { LanguageSelector } from '../components/LanguageSelector';
 import { StatusIndicator } from '../components/StatusIndicator';
 import { ContextIndicator, ContextSelector, ContextType } from '../components/ContextIndicator';
 import { ModeSelector, ModeIndicator } from '../components/ModeSelector';
+import { TranslationToggle, TranslationIndicator } from '../components/TranslationToggle';
 
 export const Home: React.FC = () => {
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const [copied, setCopied] = useState(false);
   const [isDetectingContext, setIsDetectingContext] = useState(false);
   const [showContextSelector, setShowContextSelector] = useState(false);
   const [manualContext, setManualContext] = useState<DetectedContext | null>(null);
   const [snippetReplacements, setSnippetReplacements] = useState<SnippetReplacement[]>([]);
   const [showSnippetNotification, setShowSnippetNotification] = useState(false);
+  const [translatedText, setTranslatedText] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
 
   const {
     transcript,
@@ -84,11 +88,94 @@ export const Home: React.FC = () => {
     }
   }, [manualContext, setContext]);
 
+  const translationEnabled = settings?.translation?.enabled || false;
+  const sourceLanguage = settings?.translation?.sourceLanguage || 'fr-FR';
+  const targetLanguage = settings?.translation?.targetLanguage || 'en-US';
+  const formalityLevel = settings?.translation?.formalityLevel || 'neutral';
+
+  const handleTranslationToggle = useCallback((enabled: boolean) => {
+    updateSettings({
+      translation: {
+        ...settings?.translation,
+        enabled,
+        sourceLanguage: settings?.translation?.sourceLanguage || 'fr-FR',
+        targetLanguage: settings?.translation?.targetLanguage || 'en-US',
+        preserveFormatting: settings?.translation?.preserveFormatting ?? true,
+        formalityLevel: settings?.translation?.formalityLevel || 'neutral',
+      },
+    });
+  }, [settings?.translation, updateSettings]);
+
+  const handleSourceLanguageChange = useCallback((lang: string) => {
+    updateSettings({
+      translation: {
+        ...settings?.translation,
+        enabled: settings?.translation?.enabled || false,
+        sourceLanguage: lang,
+        targetLanguage: settings?.translation?.targetLanguage || 'en-US',
+        preserveFormatting: settings?.translation?.preserveFormatting ?? true,
+        formalityLevel: settings?.translation?.formalityLevel || 'neutral',
+      },
+    });
+    if (translationEnabled) {
+      setLanguage(lang);
+    }
+  }, [settings?.translation, updateSettings, translationEnabled, setLanguage]);
+
+  const handleTargetLanguageChange = useCallback((lang: string) => {
+    updateSettings({
+      translation: {
+        ...settings?.translation,
+        enabled: settings?.translation?.enabled || false,
+        sourceLanguage: settings?.translation?.sourceLanguage || 'fr-FR',
+        targetLanguage: lang,
+        preserveFormatting: settings?.translation?.preserveFormatting ?? true,
+        formalityLevel: settings?.translation?.formalityLevel || 'neutral',
+      },
+    });
+  }, [settings?.translation, updateSettings]);
+
+  useEffect(() => {
+    if (translationEnabled && sourceLanguage) {
+      setLanguage(sourceLanguage);
+    }
+  }, [translationEnabled, sourceLanguage, setLanguage]);
+
+  const performTranslation = useCallback(async (text: string): Promise<string | null> => {
+    if (!translationEnabled || !text.trim() || sourceLanguage === targetLanguage) {
+      return null;
+    }
+
+    setIsTranslating(true);
+    setTranslationError(null);
+
+    try {
+      const result: TranslationResult = await window.electronAPI.translateText(
+        text,
+        sourceLanguage,
+        targetLanguage,
+        {
+          formalityLevel,
+          preserveFormatting: settings?.translation?.preserveFormatting ?? true,
+        }
+      );
+      setTranslatedText(result.translatedText);
+      return result.translatedText;
+    } catch (error) {
+      console.error('Translation error:', error);
+      setTranslationError(error instanceof Error ? error.message : 'Translation failed');
+      return null;
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [translationEnabled, sourceLanguage, targetLanguage, formalityLevel, settings?.translation?.preserveFormatting]);
+
   const trackDictation = useCallback(async (
     text: string,
     duration: number,
     wasCleanedUp: boolean,
-    snippets: string[]
+    snippets: string[],
+    wasTranslated: boolean = false
   ) => {
     const words = text.split(/\s+/).filter((w) => w.length > 0);
     const event: DictationEvent = {
@@ -101,7 +188,7 @@ export const Home: React.FC = () => {
       context: activeContext?.type || 'general',
       mode: currentMode,
       wasCleanedUp,
-      wasTranslated: false,
+      wasTranslated,
       snippetsUsed: snippets,
     };
     try {
@@ -127,6 +214,7 @@ export const Home: React.FC = () => {
         }
         
         let wasCleanedUp = false;
+        let cleanedResult = textToClean;
         if (settings?.autoCleanup) {
           wasCleanedUp = true;
           if (currentMode !== 'auto') {
@@ -138,12 +226,21 @@ export const Home: React.FC = () => {
           }
         }
 
-        await trackDictation(textToClean, duration, wasCleanedUp, usedSnippetsRef.current);
+        let wasTranslated = false;
+        if (translationEnabled) {
+          const textToTranslate = cleanedText || textToClean;
+          const translated = await performTranslation(textToTranslate);
+          wasTranslated = !!translated;
+        }
+
+        await trackDictation(textToClean, duration, wasCleanedUp, usedSnippetsRef.current, wasTranslated);
         usedSnippetsRef.current = [];
       }
     } else {
       resetTranscript();
       resetCleanup();
+      setTranslatedText('');
+      setTranslationError(null);
       setManualContext(null);
       setSnippetReplacements([]);
       usedSnippetsRef.current = [];
@@ -158,6 +255,7 @@ export const Home: React.FC = () => {
     stopListening,
     startListening,
     transcript,
+    cleanedText,
     cleanupWithAutoContext,
     cleanupWithMode,
     currentMode,
@@ -168,6 +266,8 @@ export const Home: React.FC = () => {
     detectContextBeforeDictation,
     manualContext,
     trackDictation,
+    translationEnabled,
+    performTranslation,
   ]);
 
   useEffect(() => {
@@ -192,8 +292,8 @@ export const Home: React.FC = () => {
     };
   }, [handleToggleRecording]);
 
-  const handleCopy = async () => {
-    const textToCopy = cleanedText || transcript;
+  const handleCopy = async (copyTranslated: boolean = false) => {
+    const textToCopy = copyTranslated && translatedText ? translatedText : (cleanedText || transcript);
     if (textToCopy) {
       await window.electronAPI.copyToClipboard(textToCopy);
       setCopied(true);
@@ -205,6 +305,9 @@ export const Home: React.FC = () => {
           cleaned: cleanedText,
           language,
           context: activeContext?.type || context,
+          translatedText: translatedText || undefined,
+          sourceLanguage: translationEnabled ? sourceLanguage : undefined,
+          targetLanguage: translationEnabled ? targetLanguage : undefined,
         });
       }
     }
@@ -281,14 +384,30 @@ export const Home: React.FC = () => {
         <div className="flex items-center gap-4">
           <StatusIndicator
             isListening={isListening}
-            isProcessing={isProcessing}
-            error={speechError || cleanupError}
+            isProcessing={isProcessing || isTranslating}
+            error={speechError || cleanupError || translationError}
           />
           {currentMode !== 'auto' && (
             <ModeIndicator mode={currentMode} />
           )}
+          {translationEnabled && (
+            <TranslationIndicator
+              sourceLanguage={sourceLanguage}
+              targetLanguage={targetLanguage}
+            />
+          )}
         </div>
         <div className="flex items-center gap-3 non-draggable">
+          <TranslationToggle
+            enabled={translationEnabled}
+            sourceLanguage={sourceLanguage}
+            targetLanguage={targetLanguage}
+            onToggle={handleTranslationToggle}
+            onSourceChange={handleSourceLanguageChange}
+            onTargetChange={handleTargetLanguageChange}
+            disabled={isListening}
+            compact
+          />
           {currentMode === 'auto' && (
             <div className="relative">
               <ContextIndicator
@@ -375,7 +494,11 @@ export const Home: React.FC = () => {
           </div>
         )}
 
-        <div className="flex-1 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
+        <div className={`flex-1 w-full max-w-5xl grid gap-4 min-h-0 ${
+            translationEnabled && translatedText
+              ? 'grid-cols-1 md:grid-cols-3'
+              : 'grid-cols-1 md:grid-cols-2'
+          }`}>
           <TranscriptDisplay
             transcript={transcript}
             interimTranscript={interimTranscript}
@@ -388,18 +511,55 @@ export const Home: React.FC = () => {
             changes={changes}
             context={context}
             onContextChange={setContext}
-            onCopy={handleCopy}
+            onCopy={() => handleCopy(false)}
           />
+          {translationEnabled && (translatedText || isTranslating) && (
+            <div className="flex flex-col bg-bg-secondary rounded-xl p-4 min-h-0">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-text-secondary flex items-center gap-2">
+                  <span>Traduction</span>
+                  <TranslationIndicator
+                    sourceLanguage={sourceLanguage}
+                    targetLanguage={targetLanguage}
+                  />
+                </h3>
+                {translatedText && (
+                  <button
+                    onClick={() => handleCopy(true)}
+                    className="text-xs px-2 py-1 rounded bg-bg-tertiary hover:bg-bg-primary text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    Copier
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 overflow-auto">
+                {isTranslating ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="flex items-center gap-2 text-text-secondary">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-accent-purple border-t-transparent"></div>
+                      <span className="text-sm">Traduction en cours...</span>
+                    </div>
+                  </div>
+                ) : translationError ? (
+                  <div className="text-red-400 text-sm">{translationError}</div>
+                ) : (
+                  <p className="text-text-primary whitespace-pre-wrap">{translatedText}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
       <footer className="flex items-center justify-between px-6 py-3 border-t border-bg-tertiary">
         <div className="flex items-center gap-4 non-draggable">
-          <LanguageSelector
-            value={language}
-            onChange={setLanguage}
-            disabled={isListening}
-          />
+          {!translationEnabled && (
+            <LanguageSelector
+              value={language}
+              onChange={setLanguage}
+              disabled={isListening}
+            />
+          )}
           {processingTime && (
             <span className="text-xs text-text-secondary">
               {processingTime}ms
@@ -420,9 +580,19 @@ export const Home: React.FC = () => {
               Nettoyer avec l'IA
             </button>
           )}
+          {translationEnabled && (cleanedText || transcript) && !translatedText && !isTranslating && (
+            <button
+              onClick={() => performTranslation(cleanedText || transcript)}
+              disabled={isTranslating}
+              className="text-sm bg-accent-blue hover:bg-accent-blue/80 text-white 
+                         px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Traduire
+            </button>
+          )}
           <button
-            onClick={handleCopy}
-            disabled={!transcript && !cleanedText}
+            onClick={() => handleCopy(translationEnabled && !!translatedText)}
+            disabled={!transcript && !cleanedText && !translatedText}
             className={`
               text-sm px-4 py-2 rounded-lg transition-colors
               ${copied
@@ -431,7 +601,7 @@ export const Home: React.FC = () => {
               disabled:opacity-50 disabled:cursor-not-allowed
             `}
           >
-            {copied ? '✓ Copié!' : 'Copier'}
+            {copied ? '✓ Copié!' : (translationEnabled && translatedText ? 'Copier traduction' : 'Copier')}
           </button>
         </div>
       </footer>

@@ -28,7 +28,8 @@ import {
   getStatsRange
 } from './database';
 import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto, cleanupWithMode } from './gemini';
-import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode, DictationEvent, AnalyticsPeriod } from '../shared/types';
+import { translateText, detectLanguage, resetTranslationGenAI } from './services/translation-service';
+import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode, DictationEvent, AnalyticsPeriod, TranslationOptions } from '../shared/types';
 import { exportAnalytics } from './services/analytics-export';
 import { getContextDetector } from './services/context-detector';
 import { updateHotkey, setAutoLaunch, getTrayManager } from './index';
@@ -70,6 +71,7 @@ export function registerIpcHandlers(): void {
     saveSettings(settings);
     if (settings.geminiApiKey !== undefined) {
       resetGenAI();
+      resetTranslationGenAI();
     }
   });
 
@@ -307,5 +309,22 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('analytics:export', async (_, format: 'json' | 'csv', period: AnalyticsPeriod) => {
     return exportAnalytics(format, period);
+  });
+
+  ipcMain.handle(
+    'translate:text',
+    async (
+      _,
+      text: string,
+      sourceLanguage: string,
+      targetLanguage: string,
+      options?: TranslationOptions
+    ) => {
+      return translateText(text, sourceLanguage, targetLanguage, options);
+    }
+  );
+
+  ipcMain.handle('translate:detect', async (_, text: string) => {
+    return detectLanguage(text);
   });
 }
