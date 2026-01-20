@@ -8,6 +8,7 @@ import { Dictionary } from './pages/Dictionary';
 import { Snippets } from './pages/Snippets';
 import { Profile } from './pages/Profile';
 import { Analytics } from './pages/Analytics';
+import { StyleProfile } from './pages/StyleProfile';
 import { useSettings } from './stores/settings';
 
 const AppContent: React.FC = () => {
@@ -45,6 +46,7 @@ const AppContent: React.FC = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/snippets" element={<Snippets />} />
+          <Route path="/style-profile" element={<StyleProfile />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/history" element={<History />} />

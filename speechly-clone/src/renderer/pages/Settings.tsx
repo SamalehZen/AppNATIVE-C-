@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Mic, Globe, Keyboard, Brain, Database, 
-  Palette, Info, ExternalLink, Languages, Radio
+  Palette, Info, ExternalLink, Languages, Radio, Fingerprint
 } from 'lucide-react';
 import { SettingsSection } from '../components/SettingsSection';
 import { HotkeyInput } from '../components/HotkeyInput';
 import { ApiKeyInput } from '../components/ApiKeyInput';
 import { Toggle } from '../components/Toggle';
 import { useSettings } from '../stores/settings';
-import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey } from '../../shared/types';
+import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey, DEFAULT_STYLE_LEARNING_SETTINGS } from '../../shared/types';
 import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS, RECORDING_TRIGGER_MODES, TRIGGER_KEY_OPTIONS, DEFAULT_RECORDING_SETTINGS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
+  const navigate = useNavigate();
   const { settings, updateSettings, isLoading } = useSettings();
   const [dbSize, setDbSize] = useState('0');
 
@@ -532,6 +534,85 @@ export const Settings: React.FC = () => {
               onChange={(v) => updateSettings({ contextAwareCleanup: v })}
             />
           </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<Fingerprint size={20} />}
+        title="Apprentissage du style"
+        description="L'IA apprend votre façon d'écrire"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-medium text-text-primary">Activer l'apprentissage</span>
+              <p className="text-xs text-text-secondary">L'IA s'adapte à votre style personnel</p>
+            </div>
+            <Toggle
+              checked={settings.styleLearning?.enabled ?? true}
+              onChange={(v) => updateSettings({
+                styleLearning: {
+                  ...DEFAULT_STYLE_LEARNING_SETTINGS,
+                  ...settings.styleLearning,
+                  enabled: v,
+                }
+              })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-medium text-text-primary">Apprentissage automatique</span>
+              <p className="text-xs text-text-secondary">Apprendre de chaque dictée</p>
+            </div>
+            <Toggle
+              checked={settings.styleLearning?.autoLearn ?? true}
+              onChange={(v) => updateSettings({
+                styleLearning: {
+                  ...DEFAULT_STYLE_LEARNING_SETTINGS,
+                  ...settings.styleLearning,
+                  autoLearn: v,
+                }
+              })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              Échantillons minimum: {settings.styleLearning?.minSamplesBeforeUse || 20}
+            </label>
+            <input
+              type="range"
+              min={10}
+              max={50}
+              step={5}
+              value={settings.styleLearning?.minSamplesBeforeUse || 20}
+              onChange={(e) => updateSettings({
+                styleLearning: {
+                  ...DEFAULT_STYLE_LEARNING_SETTINGS,
+                  ...settings.styleLearning,
+                  minSamplesBeforeUse: parseInt(e.target.value),
+                }
+              })}
+              className="w-full h-2 bg-bg-tertiary rounded-lg appearance-none cursor-pointer accent-accent-purple"
+            />
+            <div className="flex justify-between text-xs text-text-secondary mt-1">
+              <span>10 (rapide)</span>
+              <span>50 (précis)</span>
+            </div>
+            <p className="text-xs text-text-secondary mt-2">
+              Nombre d'échantillons avant d'appliquer votre style
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigate('/style-profile')}
+            className="w-full px-4 py-3 bg-bg-tertiary hover:bg-bg-secondary rounded-lg text-sm text-text-primary
+                      transition-colors flex items-center justify-center gap-2"
+          >
+            <Fingerprint size={16} />
+            Gérer mon profil de style
+          </button>
         </div>
       </SettingsSection>
 

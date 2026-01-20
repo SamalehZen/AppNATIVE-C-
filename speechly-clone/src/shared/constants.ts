@@ -261,3 +261,12 @@ export const TRIGGER_KEY_OPTIONS: { value: TriggerKey; label: string }[] = [
   { value: 'shift', label: 'Shift' },
   { value: 'capslock', label: 'CapsLock' },
 ];
+
+import type { StyleLearningSettings } from './types';
+
+export const DEFAULT_STYLE_LEARNING_SETTINGS: StyleLearningSettings = {
+  enabled: true,
+  autoLearn: true,
+  minSamplesBeforeUse: 20,
+  contextSpecificLearning: false,
+};

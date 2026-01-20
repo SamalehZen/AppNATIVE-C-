@@ -1,10 +1,11 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CleanupOptions, CleanupResult, DictationMode, UserProfile } from '../shared/types';
-import { getSettings, getUserProfile } from './database';
+import { getSettings, getUserProfile, getStyleProfile } from './database';
 import { DetectedContext, ContextType } from './services/context-detector';
 import { getPromptForContext } from './services/context-prompts';
 import { getModePrompt } from './services/mode-prompts';
 import contextDictionaries from '../data/context-dictionaries.json';
+import { getStyleLearner } from './services/style-learner';
 
 let genAI: GoogleGenerativeAI | null = null;
 
@@ -92,6 +93,27 @@ ${text}
 Réponds UNIQUEMENT avec le texte nettoyé, sans guillemets, sans explication, sans préambule.`;
 }
 
+function getStylePrompt(): string {
+  const settings = getSettings();
+  if (!settings?.styleLearning?.enabled) {
+    return '';
+  }
+  
+  const styleProfile = getStyleProfile();
+  if (!styleProfile) {
+    return '';
+  }
+  
+  const minSamples = settings.styleLearning.minSamplesBeforeUse || 20;
+  const learner = getStyleLearner(styleProfile);
+  
+  if (!learner.isReadyForUse(minSamples)) {
+    return '';
+  }
+  
+  return learner.generateStylePrompt();
+}
+
 function buildContextAwarePrompt(
   text: string,
   context: DetectedContext,
@@ -106,7 +128,12 @@ function buildContextAwarePrompt(
     );
   }
 
-  prompt = prompt.replace('{transcript}', text);
+  const stylePrompt = getStylePrompt();
+  if (stylePrompt) {
+    prompt = prompt.replace('{transcript}', `${stylePrompt}\n\nText to process:\n${text}`);
+  } else {
+    prompt = prompt.replace('{transcript}', text);
+  }
 
   return prompt;
 }
@@ -314,7 +341,12 @@ export async function cleanupWithMode(
       );
     }
 
-    prompt = prompt.replace('{transcript}', text);
+    const stylePrompt = getStylePrompt();
+    if (stylePrompt) {
+      prompt = prompt.replace('{transcript}', `${stylePrompt}\n\nText to process:\n${text}`);
+    } else {
+      prompt = prompt.replace('{transcript}', text);
+    }
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
