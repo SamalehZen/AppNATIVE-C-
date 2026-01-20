@@ -366,6 +366,54 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { code: 'tr-TR', name: 'Türkçe' },
 ];
 
+export type LanguageRegion = 'europe' | 'americas' | 'asia' | 'middle-east' | 'africa' | 'oceania';
+
+export type LanguageTier = 1 | 2 | 3 | 4 | 5;
+
+export type SupportLevel = 'full' | 'partial' | 'none';
+
+export interface Language {
+  code: string;
+  name: string;
+  nativeName: string;
+  flag: string;
+  region: LanguageRegion;
+  tier: LanguageTier;
+  speechRecognitionSupport: SupportLevel;
+  translationSupport: SupportLevel;
+  rtl: boolean;
+  variants?: string[];
+}
+
+export interface LanguageRegionInfo {
+  id: LanguageRegion;
+  name: string;
+  icon: string;
+}
+
+export interface LanguagePreferences {
+  recentLanguages: string[];
+  favoriteLanguages: string[];
+  defaultRegion: LanguageRegion | null;
+}
+
+export const DEFAULT_LANGUAGE_PREFERENCES: LanguagePreferences = {
+  recentLanguages: [],
+  favoriteLanguages: [],
+  defaultRegion: null,
+};
+
+export interface LanguageDetectionResult {
+  detectedLanguage: string;
+  confidence: number;
+  alternatives: Array<{ code: string; confidence: number }>;
+}
+
+export interface LanguagesData {
+  languages: Language[];
+  regions: LanguageRegionInfo[];
+}
+
 export interface DictationEvent {
   id: string;
   timestamp: number;
@@ -471,6 +519,11 @@ export interface ElectronAPI {
   getStyleSamples: (limit: number) => Promise<StyleSampleText[]>;
   clearStyleProfile: () => Promise<void>;
   learnFromCorrection: (original: string, corrected: string) => Promise<void>;
+  getLanguagePreferences: () => Promise<LanguagePreferences>;
+  addRecentLanguage: (code: string) => Promise<void>;
+  toggleFavoriteLanguage: (code: string) => Promise<void>;
+  setDefaultRegion: (region: LanguageRegion | null) => Promise<void>;
+  detectLanguageAdvanced: (text: string) => Promise<LanguageDetectionResult>;
 }
 
 export const SNIPPET_CATEGORIES: { value: SnippetCategory; label: string; icon: string }[] = [

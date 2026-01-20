@@ -30,11 +30,16 @@ import {
   saveStyleProfile,
   addStyleSample,
   getStyleSamples,
-  clearStyleProfile
+  clearStyleProfile,
+  getLanguagePreferences,
+  addRecentLanguage,
+  toggleFavoriteLanguage,
+  setDefaultRegion
 } from './database';
 import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto, cleanupWithMode } from './gemini';
 import { translateText, detectLanguage, resetTranslationGenAI } from './services/translation-service';
-import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode, DictationEvent, AnalyticsPeriod, TranslationOptions, StyleProfile } from '../shared/types';
+import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode, DictationEvent, AnalyticsPeriod, TranslationOptions, StyleProfile, LanguageRegion } from '../shared/types';
+import { languageDetector } from './services/language-detector';
 import { getStyleLearner } from './services/style-learner';
 import { exportAnalytics } from './services/analytics-export';
 import { getContextDetector } from './services/context-detector';
@@ -367,5 +372,25 @@ export function registerIpcHandlers(): void {
       await learner.learnFromCorrection(original, corrected);
       saveStyleProfile(learner.getProfile());
     }
+  });
+
+  ipcMain.handle('language:getPreferences', async () => {
+    return getLanguagePreferences();
+  });
+
+  ipcMain.handle('language:addRecent', async (_, code: string) => {
+    addRecentLanguage(code);
+  });
+
+  ipcMain.handle('language:toggleFavorite', async (_, code: string) => {
+    toggleFavoriteLanguage(code);
+  });
+
+  ipcMain.handle('language:setDefaultRegion', async (_, region: LanguageRegion | null) => {
+    setDefaultRegion(region);
+  });
+
+  ipcMain.handle('language:detectAdvanced', async (_, text: string) => {
+    return languageDetector.detectLanguage(text);
   });
 }

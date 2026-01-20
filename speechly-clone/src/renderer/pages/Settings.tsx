@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Mic, Globe, Keyboard, Brain, Database, 
@@ -8,18 +8,35 @@ import { SettingsSection } from '../components/SettingsSection';
 import { HotkeyInput } from '../components/HotkeyInput';
 import { ApiKeyInput } from '../components/ApiKeyInput';
 import { Toggle } from '../components/Toggle';
+import { LanguageSelectorEnhanced } from '../components/LanguageSelectorEnhanced';
+import { LanguageFavoritesManager } from '../components/LanguageFavoritesManager';
 import { useSettings } from '../stores/settings';
-import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey, DEFAULT_STYLE_LEARNING_SETTINGS } from '../../shared/types';
+import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey, DEFAULT_STYLE_LEARNING_SETTINGS, LanguagePreferences } from '../../shared/types';
 import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS, RECORDING_TRIGGER_MODES, TRIGGER_KEY_OPTIONS, DEFAULT_RECORDING_SETTINGS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { settings, updateSettings, isLoading } = useSettings();
   const [dbSize, setDbSize] = useState('0');
+  const [languagePrefs, setLanguagePrefs] = useState<LanguagePreferences>({
+    recentLanguages: [],
+    favoriteLanguages: [],
+    defaultRegion: null,
+  });
+
+  const loadLanguagePrefs = useCallback(async () => {
+    try {
+      const prefs = await window.electronAPI.getLanguagePreferences();
+      setLanguagePrefs(prefs);
+    } catch (e) {
+      console.error('Failed to load language preferences:', e);
+    }
+  }, []);
 
   useEffect(() => {
     loadStats();
-  }, []);
+    loadLanguagePrefs();
+  }, [loadLanguagePrefs]);
 
   const loadStats = async () => {
     try {
@@ -28,6 +45,16 @@ export const Settings: React.FC = () => {
     } catch (e) {
       console.error('Failed to load stats:', e);
     }
+  };
+
+  const handleAddFavorite = async (code: string) => {
+    await window.electronAPI.toggleFavoriteLanguage(code);
+    loadLanguagePrefs();
+  };
+
+  const handleRemoveFavorite = async (code: string) => {
+    await window.electronAPI.toggleFavoriteLanguage(code);
+    loadLanguagePrefs();
   };
 
   const handleClearHistory = async () => {
@@ -55,28 +82,31 @@ export const Settings: React.FC = () => {
         description="Configuration de la capture audio"
       >
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
-              Langue par défaut
-            </label>
-            <select
-              value={settings.defaultLanguage}
-              onChange={(e) => updateSettings({ defaultLanguage: e.target.value })}
-              className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
-                        focus:border-accent-purple focus:outline-none cursor-pointer"
-            >
-              {SUPPORTED_LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.name}
-                </option>
-              ))}
-            </select>
+          <LanguageSelectorEnhanced
+            value={settings.defaultLanguage}
+            onChange={(code) => updateSettings({ defaultLanguage: code })}
+            label="Langue par défaut"
+            showRecent
+            showFavorites
+            filterSupport="speech"
+          />
+
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-text-primary mb-2">Langues favorites</h4>
+            <p className="text-xs text-text-secondary mb-3">
+              Ajoutez des langues pour un accès rapide (152 langues disponibles)
+            </p>
+            <LanguageFavoritesManager
+              favorites={languagePrefs.favoriteLanguages}
+              onAdd={handleAddFavorite}
+              onRemove={handleRemoveFavorite}
+            />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between border-t border-bg-tertiary pt-4">
             <div>
               <span className="text-sm font-medium text-text-primary">Détection automatique de la langue</span>
-              <p className="text-xs text-text-secondary">Laisse l'API détecter la langue parlée</p>
+              <p className="text-xs text-text-secondary">Détecte automatiquement la langue parlée avec Gemini</p>
             </div>
             <Toggle
               checked={settings.autoDetectLanguage}
