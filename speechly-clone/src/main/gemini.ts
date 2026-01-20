@@ -9,6 +9,10 @@ import { getStyleLearner } from './services/style-learner';
 
 let genAI: GoogleGenerativeAI | null = null;
 
+export function getGeminiClient(): GoogleGenerativeAI | null {
+  return getGenAI();
+}
+
 function getGenAI(): GoogleGenerativeAI | null {
   const settings = getSettings();
   if (!settings?.geminiApiKey) {

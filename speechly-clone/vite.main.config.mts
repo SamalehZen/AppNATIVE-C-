@@ -6,6 +6,7 @@ export default defineConfig({
     rollupOptions: {
       external: [
         'electron',
+        'keytar',
         ...builtinModules,
         ...builtinModules.map(m => `node:${m}`),
       ],
