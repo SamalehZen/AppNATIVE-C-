@@ -252,4 +252,47 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   detectLanguageAdvanced: (text: string): Promise<LanguageDetectionResult> =>
     ipcRenderer.invoke('language:detectAdvanced', text),
+
+  securityUnlock: (password: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('security:unlock', password),
+
+  securitySetPassword: (password: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('security:setPassword', password),
+
+  securityRemovePassword: (currentPassword: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('security:removePassword', currentPassword),
+
+  securityChangePassword: (currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('security:changePassword', currentPassword, newPassword),
+
+  securityExportKey: (): Promise<string> =>
+    ipcRenderer.invoke('security:exportKey'),
+
+  securityImportKey: (key: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('security:importKey', key),
+
+  securityIsLocked: (): Promise<boolean> =>
+    ipcRenderer.invoke('security:isLocked'),
+
+  securityHasPassword: (): Promise<boolean> =>
+    ipcRenderer.invoke('security:hasPassword'),
+
+  securityLock: (): Promise<void> =>
+    ipcRenderer.invoke('security:lock'),
+
+  onAppLocked: (callback: () => void): void => {
+    ipcRenderer.on('app:locked', callback);
+  },
+
+  removeAppLockedListener: (): void => {
+    ipcRenderer.removeAllListeners('app:locked');
+  },
+
+  onAppUnlocked: (callback: () => void): void => {
+    ipcRenderer.on('app:unlocked', callback);
+  },
+
+  removeAppUnlockedListener: (): void => {
+    ipcRenderer.removeAllListeners('app:unlocked');
+  },
 });
