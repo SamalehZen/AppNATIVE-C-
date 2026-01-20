@@ -5,6 +5,7 @@ import { Home } from './pages/Home';
 import { Settings } from './pages/Settings';
 import { History } from './pages/History';
 import { Dictionary } from './pages/Dictionary';
+import { Snippets } from './pages/Snippets';
 import { useSettings } from './stores/settings';
 
 const AppContent: React.FC = () => {
@@ -41,6 +42,7 @@ const AppContent: React.FC = () => {
       <main className="flex-1 overflow-hidden">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/snippets" element={<Snippets />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/history" element={<History />} />
           <Route path="/dictionary" element={<Dictionary />} />

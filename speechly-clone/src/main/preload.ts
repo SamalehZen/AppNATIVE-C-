@@ -8,6 +8,9 @@ import {
   DetectedContext,
   ContextCleanupResult,
   CustomDictionary,
+  Snippet,
+  SnippetCategory,
+  SnippetProcessResult,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -47,6 +50,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   deleteDictionaryTerm: (id: number): Promise<void> =>
     ipcRenderer.invoke('db:deleteDictionaryTerm', id),
+
+  getSnippets: (): Promise<Snippet[]> =>
+    ipcRenderer.invoke('snippets:getAll'),
+
+  getSnippetsByCategory: (category: SnippetCategory): Promise<Snippet[]> =>
+    ipcRenderer.invoke('snippets:getByCategory', category),
+
+  saveSnippet: (snippet: Snippet): Promise<void> =>
+    ipcRenderer.invoke('snippets:save', snippet),
+
+  updateSnippet: (id: string, updates: Partial<Snippet>): Promise<void> =>
+    ipcRenderer.invoke('snippets:update', id, updates),
+
+  deleteSnippet: (id: string): Promise<void> =>
+    ipcRenderer.invoke('snippets:delete', id),
+
+  findSnippetByTrigger: (text: string): Promise<Snippet | null> =>
+    ipcRenderer.invoke('snippets:findByTrigger', text),
+
+  incrementSnippetUsage: (id: string): Promise<void> =>
+    ipcRenderer.invoke('snippets:incrementUsage', id),
+
+  processSnippets: (text: string): Promise<SnippetProcessResult> =>
+    ipcRenderer.invoke('snippets:process', text),
 
   copyToClipboard: (text: string): Promise<void> =>
     ipcRenderer.invoke('clipboard:copy', text),

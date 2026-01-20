@@ -10,10 +10,18 @@ import {
   getDictionary,
   addDictionaryTerm,
   updateDictionaryTerm,
-  deleteDictionaryTerm
+  deleteDictionaryTerm,
+  getSnippets,
+  getSnippetsByCategory,
+  saveSnippet,
+  updateSnippet,
+  deleteSnippet,
+  findSnippetByTrigger,
+  incrementSnippetUsage,
+  processSnippets
 } from './database';
 import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto } from './gemini';
-import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo } from '../shared/types';
+import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory } from '../shared/types';
 import { getContextDetector } from './services/context-detector';
 import { updateHotkey, setAutoLaunch, getTrayManager } from './index';
 
@@ -211,5 +219,37 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('tray:setRecording', async (_, isRecording: boolean) => {
     getTrayManager()?.setRecordingState(isRecording);
+  });
+
+  ipcMain.handle('snippets:getAll', async () => {
+    return getSnippets();
+  });
+
+  ipcMain.handle('snippets:getByCategory', async (_, category: SnippetCategory) => {
+    return getSnippetsByCategory(category);
+  });
+
+  ipcMain.handle('snippets:save', async (_, snippet: Snippet) => {
+    saveSnippet(snippet);
+  });
+
+  ipcMain.handle('snippets:update', async (_, id: string, updates: Partial<Snippet>) => {
+    updateSnippet(id, updates);
+  });
+
+  ipcMain.handle('snippets:delete', async (_, id: string) => {
+    deleteSnippet(id);
+  });
+
+  ipcMain.handle('snippets:findByTrigger', async (_, text: string) => {
+    return findSnippetByTrigger(text);
+  });
+
+  ipcMain.handle('snippets:incrementUsage', async (_, id: string) => {
+    incrementSnippetUsage(id);
+  });
+
+  ipcMain.handle('snippets:process', async (_, text: string) => {
+    return processSnippets(text);
   });
 }

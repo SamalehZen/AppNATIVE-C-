@@ -4,6 +4,7 @@ import { Mic, Clock, BookOpen, Settings, Zap } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Mic, label: 'Dictée' },
+  { path: '/snippets', icon: Zap, label: 'Snippets' },
   { path: '/history', icon: Clock, label: 'Historique' },
   { path: '/dictionary', icon: BookOpen, label: 'Dictionnaire' },
   { path: '/settings', icon: Settings, label: 'Paramètres' },

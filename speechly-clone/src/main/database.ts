@@ -1,13 +1,14 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS } from '../shared/types';
 import { CONTEXT_NAMES } from '../shared/constants';
 
 interface DatabaseData {
   settings: Settings | null;
   history: TranscriptHistory[];
   dictionary: CustomDictionary[];
+  snippets: Snippet[];
   nextHistoryId: number;
   nextDictionaryId: number;
 }
@@ -16,6 +17,7 @@ let data: DatabaseData = {
   settings: null,
   history: [],
   dictionary: [],
+  snippets: [],
   nextHistoryId: 1,
   nextDictionaryId: 1,
 };
@@ -42,6 +44,7 @@ function loadData(): void {
         settings: loaded.settings || null,
         history: loaded.history || [],
         dictionary: loaded.dictionary || [],
+        snippets: loaded.snippets || [],
         nextHistoryId: loaded.nextHistoryId || 1,
         nextDictionaryId: loaded.nextDictionaryId || 1,
       };
@@ -76,7 +79,24 @@ export async function initDatabase(): Promise<void> {
     saveData();
   }
   
+  if (data.snippets.length === 0) {
+    initDefaultSnippets();
+  }
+  
   cleanupOldHistory();
+}
+
+function initDefaultSnippets(): void {
+  const now = Date.now();
+  data.snippets = DEFAULT_SNIPPETS.map((snippet, index) => ({
+    ...snippet,
+    id: `snippet-${now}-${index}`,
+    content: '',
+    usageCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  }));
+  saveData();
 }
 
 function cleanupOldHistory(): void {
@@ -233,4 +253,101 @@ export function deleteDictionaryTerm(id: number): void {
 
 export function closeDatabase(): void {
   saveData();
+}
+
+export function getSnippets(): Snippet[] {
+  return [...data.snippets].sort((a, b) => a.triggerPhrase.localeCompare(b.triggerPhrase));
+}
+
+export function getSnippetsByCategory(category: SnippetCategory): Snippet[] {
+  return data.snippets
+    .filter(snippet => snippet.category === category)
+    .sort((a, b) => a.triggerPhrase.localeCompare(b.triggerPhrase));
+}
+
+export function saveSnippet(snippet: Snippet): void {
+  const existingIndex = data.snippets.findIndex(s => s.id === snippet.id);
+  if (existingIndex !== -1) {
+    data.snippets[existingIndex] = { ...snippet, updatedAt: Date.now() };
+  } else {
+    data.snippets.push({ ...snippet, createdAt: Date.now(), updatedAt: Date.now() });
+  }
+  saveData();
+}
+
+export function updateSnippet(id: string, updates: Partial<Snippet>): void {
+  const index = data.snippets.findIndex(s => s.id === id);
+  if (index !== -1) {
+    data.snippets[index] = { ...data.snippets[index], ...updates, updatedAt: Date.now() };
+    saveData();
+  }
+}
+
+export function deleteSnippet(id: string): void {
+  data.snippets = data.snippets.filter(s => s.id !== id);
+  saveData();
+}
+
+export function findSnippetByTrigger(text: string): Snippet | null {
+  const lowerText = text.toLowerCase();
+  
+  for (const snippet of data.snippets) {
+    if (!snippet.isActive || !snippet.content) continue;
+    
+    if (lowerText.includes(snippet.triggerPhrase.toLowerCase())) {
+      return snippet;
+    }
+    
+    for (const variant of snippet.triggerVariants) {
+      if (lowerText.includes(variant.toLowerCase())) {
+        return snippet;
+      }
+    }
+  }
+  
+  return null;
+}
+
+export function incrementSnippetUsage(id: string): void {
+  const index = data.snippets.findIndex(s => s.id === id);
+  if (index !== -1) {
+    data.snippets[index].usageCount++;
+    data.snippets[index].updatedAt = Date.now();
+    saveData();
+  }
+}
+
+export function processSnippets(text: string): SnippetProcessResult {
+  let processedText = text;
+  const replacements: { trigger: string; value: string; snippetId: string }[] = [];
+  const lowerText = text.toLowerCase();
+  
+  for (const snippet of data.snippets) {
+    if (!snippet.isActive || !snippet.content) continue;
+    
+    const allTriggers = [snippet.triggerPhrase, ...snippet.triggerVariants];
+    
+    for (const trigger of allTriggers) {
+      const lowerTrigger = trigger.toLowerCase();
+      const index = lowerText.indexOf(lowerTrigger);
+      
+      if (index !== -1) {
+        const originalTrigger = text.substring(index, index + trigger.length);
+        processedText = processedText.replace(new RegExp(escapeRegex(originalTrigger), 'gi'), snippet.content);
+        replacements.push({
+          trigger: originalTrigger,
+          value: snippet.content,
+          snippetId: snippet.id,
+        });
+        incrementSnippetUsage(snippet.id);
+        break;
+      }
+    }
+  }
+  
+  return { processedText, replacements };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

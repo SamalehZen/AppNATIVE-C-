@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DetectedContext } from '../../shared/types';
+import { DetectedContext, SnippetReplacement } from '../../shared/types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useGeminiCleanup } from '../hooks/useGeminiCleanup';
 import { useSettings } from '../stores/settings';
@@ -16,6 +16,8 @@ export const Home: React.FC = () => {
   const [isDetectingContext, setIsDetectingContext] = useState(false);
   const [showContextSelector, setShowContextSelector] = useState(false);
   const [manualContext, setManualContext] = useState<DetectedContext | null>(null);
+  const [snippetReplacements, setSnippetReplacements] = useState<SnippetReplacement[]>([]);
+  const [showSnippetNotification, setShowSnippetNotification] = useState(false);
 
   const {
     transcript,
@@ -71,17 +73,29 @@ export const Home: React.FC = () => {
   const handleToggleRecording = useCallback(async () => {
     if (isListening) {
       stopListening();
-      if (transcript && settings?.autoCleanup) {
-        if (manualContext) {
-          await window.electronAPI.cleanupWithContext(transcript, manualContext, language);
-        } else {
-          await cleanupWithAutoContext(transcript, language);
+      if (transcript) {
+        const snippetResult = await window.electronAPI.processSnippets(transcript);
+        const textToClean = snippetResult.processedText;
+        
+        if (snippetResult.replacements.length > 0) {
+          setSnippetReplacements(snippetResult.replacements);
+          setShowSnippetNotification(true);
+          setTimeout(() => setShowSnippetNotification(false), 5000);
+        }
+        
+        if (settings?.autoCleanup) {
+          if (manualContext) {
+            await window.electronAPI.cleanupWithContext(textToClean, manualContext, language);
+          } else {
+            await cleanupWithAutoContext(textToClean, language);
+          }
         }
       }
     } else {
       resetTranscript();
       resetCleanup();
       setManualContext(null);
+      setSnippetReplacements([]);
       await detectContextBeforeDictation();
       startListening();
     }
@@ -267,6 +281,23 @@ export const Home: React.FC = () => {
             </div>
           )}
         </div>
+
+        {showSnippetNotification && snippetReplacements.length > 0 && (
+          <div className="w-full max-w-4xl mb-4">
+            <div className="bg-accent-purple/20 border border-accent-purple/40 rounded-lg p-3">
+              <p className="text-sm text-accent-purple font-medium mb-2">Snippets insérés:</p>
+              <div className="space-y-1">
+                {snippetReplacements.map((replacement, index) => (
+                  <div key={index} className="text-xs text-text-secondary flex items-center gap-2">
+                    <span className="text-text-primary">{replacement.trigger}</span>
+                    <span>→</span>
+                    <span className="text-accent-green truncate">{replacement.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
           <TranscriptDisplay
