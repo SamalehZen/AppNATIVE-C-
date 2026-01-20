@@ -18,10 +18,13 @@ import {
   deleteSnippet,
   findSnippetByTrigger,
   incrementSnippetUsage,
-  processSnippets
+  processSnippets,
+  getUserProfile,
+  saveUserProfile,
+  updateUserProfile
 } from './database';
 import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto } from './gemini';
-import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory } from '../shared/types';
+import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile } from '../shared/types';
 import { getContextDetector } from './services/context-detector';
 import { updateHotkey, setAutoLaunch, getTrayManager } from './index';
 
@@ -251,5 +254,17 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('snippets:process', async (_, text: string) => {
     return processSnippets(text);
+  });
+
+  ipcMain.handle('profile:get', async () => {
+    return getUserProfile();
+  });
+
+  ipcMain.handle('profile:save', async (_, profile: UserProfile) => {
+    saveUserProfile(profile);
+  });
+
+  ipcMain.handle('profile:update', async (_, updates: Partial<UserProfile>) => {
+    updateUserProfile(updates);
   });
 }

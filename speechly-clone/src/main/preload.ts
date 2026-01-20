@@ -11,6 +11,7 @@ import {
   Snippet,
   SnippetCategory,
   SnippetProcessResult,
+  UserProfile,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -144,4 +145,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   setTrayRecording: (isRecording: boolean): Promise<void> =>
     ipcRenderer.invoke('tray:setRecording', isRecording),
+
+  getProfile: (): Promise<UserProfile | null> =>
+    ipcRenderer.invoke('profile:get'),
+
+  saveProfile: (profile: UserProfile): Promise<void> =>
+    ipcRenderer.invoke('profile:save', profile),
+
+  updateProfile: (updates: Partial<UserProfile>): Promise<void> =>
+    ipcRenderer.invoke('profile:update', updates),
 });

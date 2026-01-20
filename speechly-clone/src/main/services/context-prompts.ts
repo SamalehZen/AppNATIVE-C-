@@ -1,4 +1,6 @@
 import { ContextType, DetectedContext } from './context-detector';
+import { UserProfile } from '../../shared/types';
+import { getUserProfile, resolveProfileVariables } from '../database';
 
 interface ContextPrompt {
   systemInstruction: string;
@@ -270,6 +272,11 @@ export function getPromptForContext(context: DetectedContext): string {
   const basePrompt = contextPrompts[context.type] || contextPrompts.general;
   let prompt = basePrompt.systemInstruction;
 
+  const profile = getUserProfile();
+  if (profile && hasProfileData(profile)) {
+    prompt += getProfilePromptSection(profile, context.type);
+  }
+
   if (basePrompt.examples && basePrompt.examples.length > 0) {
     prompt += '\n\nEXEMPLES:';
     for (const ex of basePrompt.examples) {
@@ -285,6 +292,48 @@ export function getPromptForContext(context: DetectedContext): string {
     '\n\nTEXTE À TRANSCRIRE:\n{transcript}\n\nRéponds UNIQUEMENT avec le texte nettoyé, sans explication, sans guillemets.';
 
   return prompt;
+}
+
+function hasProfileData(profile: UserProfile): boolean {
+  return !!(profile.firstName || profile.lastName || profile.company || profile.jobTitle);
+}
+
+function getProfilePromptSection(profile: UserProfile, contextType: ContextType): string {
+  let section = '\n\nPROFIL UTILISATEUR POUR SIGNATURE:';
+  
+  if (profile.fullName) {
+    section += `\n- Nom: ${profile.fullName}`;
+  }
+  if (profile.jobTitle) {
+    section += `\n- Poste: ${profile.jobTitle}`;
+  }
+  if (profile.company) {
+    section += `\n- Entreprise: ${profile.company}`;
+  }
+  if (profile.department) {
+    section += `\n- Département: ${profile.department}`;
+  }
+  if (profile.email) {
+    section += `\n- Email: ${profile.email}`;
+  }
+  if (profile.phone) {
+    section += `\n- Téléphone: ${profile.phone}`;
+  }
+
+  if (contextType === 'email') {
+    section += `\n\nQUAND L'UTILISATEUR DIT "Cordialement" OU "Bien à vous" OU SIMILAIRE:`;
+    section += `\n- Utilise la signature formelle: ${resolveProfileVariables(profile.signatures.formal)}`;
+    section += `\nQUAND L'UTILISATEUR DIT "À bientôt" OU "Bises" OU TON INFORMEL:`;
+    section += `\n- Utilise la signature informelle: ${resolveProfileVariables(profile.signatures.informal)}`;
+    section += `\nSI L'UTILISATEUR DEMANDE UNE SIGNATURE COMPLÈTE OU PROFESSIONNELLE:`;
+    section += `\n- Utilise: ${resolveProfileVariables(profile.signatures.professional)}`;
+  }
+
+  return section;
+}
+
+export function processTextWithProfile(text: string): string {
+  return resolveProfileVariables(text);
 }
 
 function formatSubContext(subContext: string): string {
