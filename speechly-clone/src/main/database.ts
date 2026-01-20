@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE } from '../shared/types';
 import { CONTEXT_NAMES } from '../shared/constants';
 
 interface DatabaseData {
@@ -9,6 +9,7 @@ interface DatabaseData {
   history: TranscriptHistory[];
   dictionary: CustomDictionary[];
   snippets: Snippet[];
+  profile: UserProfile | null;
   nextHistoryId: number;
   nextDictionaryId: number;
 }
@@ -18,6 +19,7 @@ let data: DatabaseData = {
   history: [],
   dictionary: [],
   snippets: [],
+  profile: null,
   nextHistoryId: 1,
   nextDictionaryId: 1,
 };
@@ -45,6 +47,7 @@ function loadData(): void {
         history: loaded.history || [],
         dictionary: loaded.dictionary || [],
         snippets: loaded.snippets || [],
+        profile: loaded.profile || null,
         nextHistoryId: loaded.nextHistoryId || 1,
         nextDictionaryId: loaded.nextDictionaryId || 1,
       };
@@ -333,10 +336,11 @@ export function processSnippets(text: string): SnippetProcessResult {
       
       if (index !== -1) {
         const originalTrigger = text.substring(index, index + trigger.length);
-        processedText = processedText.replace(new RegExp(escapeRegex(originalTrigger), 'gi'), snippet.content);
+        const resolvedContent = resolveProfileVariables(snippet.content);
+        processedText = processedText.replace(new RegExp(escapeRegex(originalTrigger), 'gi'), resolvedContent);
         replacements.push({
           trigger: originalTrigger,
-          value: snippet.content,
+          value: resolvedContent,
           snippetId: snippet.id,
         });
         incrementSnippetUsage(snippet.id);
@@ -350,4 +354,56 @@ export function processSnippets(text: string): SnippetProcessResult {
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function getUserProfile(): UserProfile | null {
+  return data.profile;
+}
+
+export function saveUserProfile(profile: UserProfile): void {
+  const now = Date.now();
+  const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+  
+  data.profile = {
+    ...profile,
+    fullName,
+    createdAt: data.profile?.createdAt || now,
+    updatedAt: now,
+  };
+  saveData();
+}
+
+export function updateUserProfile(updates: Partial<UserProfile>): void {
+  if (!data.profile) {
+    data.profile = { ...DEFAULT_USER_PROFILE, createdAt: Date.now(), updatedAt: Date.now() };
+  }
+  
+  const updatedProfile = { ...data.profile, ...updates };
+  
+  if (updates.firstName !== undefined || updates.lastName !== undefined) {
+    updatedProfile.fullName = `${updatedProfile.firstName} ${updatedProfile.lastName}`.trim();
+  }
+  
+  updatedProfile.updatedAt = Date.now();
+  data.profile = updatedProfile;
+  saveData();
+}
+
+export function resolveProfileVariables(text: string): string {
+  if (!data.profile) return text;
+  
+  const profile = data.profile;
+  let result = text;
+  
+  result = result.replace(/\{firstName\}/g, profile.firstName);
+  result = result.replace(/\{lastName\}/g, profile.lastName);
+  result = result.replace(/\{fullName\}/g, profile.fullName);
+  result = result.replace(/\{jobTitle\}/g, profile.jobTitle);
+  result = result.replace(/\{company\}/g, profile.company);
+  result = result.replace(/\{department\}/g, profile.department);
+  result = result.replace(/\{email\}/g, profile.email);
+  result = result.replace(/\{phone\}/g, profile.phone);
+  result = result.replace(/\{mobile\}/g, profile.mobile);
+  
+  return result;
 }

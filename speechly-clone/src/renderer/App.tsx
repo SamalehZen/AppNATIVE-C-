@@ -6,6 +6,7 @@ import { Settings } from './pages/Settings';
 import { History } from './pages/History';
 import { Dictionary } from './pages/Dictionary';
 import { Snippets } from './pages/Snippets';
+import { Profile } from './pages/Profile';
 import { useSettings } from './stores/settings';
 
 const AppContent: React.FC = () => {
@@ -46,6 +47,7 @@ const AppContent: React.FC = () => {
           <Route path="/settings" element={<Settings />} />
           <Route path="/history" element={<History />} />
           <Route path="/dictionary" element={<Dictionary />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
     </div>

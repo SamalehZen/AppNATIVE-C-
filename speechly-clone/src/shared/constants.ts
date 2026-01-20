@@ -51,5 +51,6 @@ export const NAV_ITEMS = [
   { path: '/snippets', icon: 'Zap', label: 'Snippets' },
   { path: '/history', icon: 'Clock', label: 'Historique' },
   { path: '/dictionary', icon: 'BookOpen', label: 'Dictionnaire' },
+  { path: '/profile', icon: 'User', label: 'Profil' },
   { path: '/settings', icon: 'Settings', label: 'Paramètres' },
 ] as const;

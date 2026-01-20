@@ -1,3 +1,39 @@
+export interface UserProfileAddress {
+  street: string;
+  city: string;
+  postalCode: string;
+  country: string;
+}
+
+export interface UserProfileSignatures {
+  formal: string;
+  informal: string;
+  professional: string;
+}
+
+export interface UserProfile {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  jobTitle: string;
+  company: string;
+  department: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  address: UserProfileAddress;
+  linkedin: string;
+  twitter: string;
+  website: string;
+  calendlyLink: string;
+  signatures: UserProfileSignatures;
+  preferredLanguage: string;
+  timezone: string;
+  avatarPath?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type GeminiModel = 
   | 'gemini-3-flash-preview'
   | 'gemini-2.5-flash-preview-09-2025'
@@ -199,6 +235,9 @@ export interface ElectronAPI {
   removeNavigateListener: () => void;
   onToggleDictation: (callback: () => void) => void;
   removeToggleDictationListener: () => void;
+  getProfile: () => Promise<UserProfile | null>;
+  saveProfile: (profile: UserProfile) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
 export const SNIPPET_CATEGORIES: { value: SnippetCategory; label: string; icon: string }[] = [
@@ -216,6 +255,49 @@ export const DEFAULT_SNIPPETS: Omit<Snippet, 'id' | 'content' | 'usageCount' | '
   { triggerPhrase: 'mon IBAN', triggerVariants: ['voici mon IBAN', 'insère mon IBAN', 'mon numéro IBAN'], category: 'financial', isActive: true },
   { triggerPhrase: 'mon calendrier', triggerVariants: ['voici mon calendrier', 'mon lien calendrier', 'mon calendly'], category: 'links', isActive: true },
   { triggerPhrase: 'ma signature', triggerVariants: ['voici ma signature', 'insère ma signature', 'signe pour moi'], category: 'signatures', isActive: true },
+];
+
+export const DEFAULT_USER_PROFILE: UserProfile = {
+  firstName: '',
+  lastName: '',
+  fullName: '',
+  jobTitle: '',
+  company: '',
+  department: '',
+  email: '',
+  phone: '',
+  mobile: '',
+  address: {
+    street: '',
+    city: '',
+    postalCode: '',
+    country: 'France',
+  },
+  linkedin: '',
+  twitter: '',
+  website: '',
+  calendlyLink: '',
+  signatures: {
+    formal: 'Cordialement,\n{fullName}',
+    informal: 'À bientôt,\n{firstName}',
+    professional: 'Cordialement,\n\n{fullName}\n{jobTitle}\n{company}\n{email} | {phone}',
+  },
+  preferredLanguage: 'fr-FR',
+  timezone: 'Europe/Paris',
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+export const PROFILE_VARIABLES = [
+  { key: '{firstName}', label: 'Prénom', description: 'Votre prénom' },
+  { key: '{lastName}', label: 'Nom', description: 'Votre nom de famille' },
+  { key: '{fullName}', label: 'Nom complet', description: 'Prénom + Nom' },
+  { key: '{jobTitle}', label: 'Poste', description: 'Votre fonction' },
+  { key: '{company}', label: 'Entreprise', description: 'Nom de votre entreprise' },
+  { key: '{department}', label: 'Département', description: 'Votre service' },
+  { key: '{email}', label: 'Email', description: 'Votre adresse email' },
+  { key: '{phone}', label: 'Téléphone', description: 'Numéro fixe' },
+  { key: '{mobile}', label: 'Mobile', description: 'Numéro mobile' },
 ];
 
 declare global {
