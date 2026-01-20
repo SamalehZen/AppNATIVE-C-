@@ -56,6 +56,37 @@ export interface CustomDictionary {
   createdAt: string;
 }
 
+export type SnippetCategory = 'personal' | 'financial' | 'links' | 'templates' | 'signatures';
+
+export interface Snippet {
+  id: string;
+  triggerPhrase: string;
+  triggerVariants: string[];
+  content: string;
+  category: SnippetCategory;
+  isActive: boolean;
+  usageCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SnippetReplacement {
+  trigger: string;
+  value: string;
+  snippetId: string;
+}
+
+export interface SnippetDetectionResult {
+  snippet: Snippet | null;
+  matchedPhrase: string;
+  position: { start: number; end: number };
+}
+
+export interface SnippetProcessResult {
+  processedText: string;
+  replacements: SnippetReplacement[];
+}
+
 export type CleanupContext = 
   | 'email'
   | 'chat'
@@ -145,6 +176,14 @@ export interface ElectronAPI {
   addDictionaryTerm: (term: string, replacement: string, context: string) => Promise<void>;
   updateDictionaryTerm: (id: number, term: string, replacement: string, context: string) => Promise<void>;
   deleteDictionaryTerm: (id: number) => Promise<void>;
+  getSnippets: () => Promise<Snippet[]>;
+  getSnippetsByCategory: (category: SnippetCategory) => Promise<Snippet[]>;
+  saveSnippet: (snippet: Snippet) => Promise<void>;
+  updateSnippet: (id: string, updates: Partial<Snippet>) => Promise<void>;
+  deleteSnippet: (id: string) => Promise<void>;
+  findSnippetByTrigger: (text: string) => Promise<Snippet | null>;
+  incrementSnippetUsage: (id: string) => Promise<void>;
+  processSnippets: (text: string) => Promise<SnippetProcessResult>;
   copyToClipboard: (text: string) => Promise<void>;
   getVersion: () => Promise<string>;
   cleanupTranscript: (text: string, options: CleanupOptions) => Promise<CleanupResult>;
@@ -161,6 +200,23 @@ export interface ElectronAPI {
   onToggleDictation: (callback: () => void) => void;
   removeToggleDictationListener: () => void;
 }
+
+export const SNIPPET_CATEGORIES: { value: SnippetCategory; label: string; icon: string }[] = [
+  { value: 'personal', label: 'Personnel', icon: 'user' },
+  { value: 'financial', label: 'Financier', icon: 'credit-card' },
+  { value: 'links', label: 'Liens', icon: 'link' },
+  { value: 'templates', label: 'Modèles', icon: 'file-text' },
+  { value: 'signatures', label: 'Signatures', icon: 'pen-tool' },
+];
+
+export const DEFAULT_SNIPPETS: Omit<Snippet, 'id' | 'content' | 'usageCount' | 'createdAt' | 'updatedAt'>[] = [
+  { triggerPhrase: 'mon email', triggerVariants: ['voici mon email', 'insère mon email', 'mon adresse email'], category: 'personal', isActive: true },
+  { triggerPhrase: 'mon téléphone', triggerVariants: ['voici mon téléphone', 'mon numéro', 'mon numéro de téléphone'], category: 'personal', isActive: true },
+  { triggerPhrase: 'mon adresse', triggerVariants: ['voici mon adresse', 'insère mon adresse', 'mon adresse postale'], category: 'personal', isActive: true },
+  { triggerPhrase: 'mon IBAN', triggerVariants: ['voici mon IBAN', 'insère mon IBAN', 'mon numéro IBAN'], category: 'financial', isActive: true },
+  { triggerPhrase: 'mon calendrier', triggerVariants: ['voici mon calendrier', 'mon lien calendrier', 'mon calendly'], category: 'links', isActive: true },
+  { triggerPhrase: 'ma signature', triggerVariants: ['voici ma signature', 'insère ma signature', 'signe pour moi'], category: 'signatures', isActive: true },
+];
 
 declare global {
   interface Window {
