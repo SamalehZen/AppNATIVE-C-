@@ -1,8 +1,9 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod } from '../shared/types';
 import { CONTEXT_NAMES } from '../shared/constants';
+import { analyticsService } from './services/analytics-service';
 
 interface DatabaseData {
   settings: Settings | null;
@@ -10,6 +11,7 @@ interface DatabaseData {
   dictionary: CustomDictionary[];
   snippets: Snippet[];
   profile: UserProfile | null;
+  analyticsEvents: DictationEvent[];
   nextHistoryId: number;
   nextDictionaryId: number;
 }
@@ -20,6 +22,7 @@ let data: DatabaseData = {
   dictionary: [],
   snippets: [],
   profile: null,
+  analyticsEvents: [],
   nextHistoryId: 1,
   nextDictionaryId: 1,
 };
@@ -48,6 +51,7 @@ function loadData(): void {
         dictionary: loaded.dictionary || [],
         snippets: loaded.snippets || [],
         profile: loaded.profile || null,
+        analyticsEvents: loaded.analyticsEvents || [],
         nextHistoryId: loaded.nextHistoryId || 1,
         nextDictionaryId: loaded.nextDictionaryId || 1,
       };
@@ -408,4 +412,108 @@ export function resolveProfileVariables(text: string): string {
   result = result.replace(/\{mobile\}/g, profile.mobile);
   
   return result;
+}
+
+export function trackDictationEvent(event: DictationEvent): void {
+  data.analyticsEvents.push(event);
+  saveData();
+}
+
+export function getAnalyticsEvents(startDate?: Date, endDate?: Date): DictationEvent[] {
+  let events = [...data.analyticsEvents];
+  
+  if (startDate) {
+    events = events.filter(e => e.timestamp >= startDate.getTime());
+  }
+  if (endDate) {
+    events = events.filter(e => e.timestamp <= endDate.getTime());
+  }
+  
+  return events.sort((a, b) => a.timestamp - b.timestamp);
+}
+
+export function getDailyStats(date: string): DailyStats | null {
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+  const nextDate = new Date(targetDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+
+  const events = data.analyticsEvents.filter(e => {
+    const eventDate = new Date(e.timestamp);
+    return eventDate >= targetDate && eventDate < nextDate;
+  });
+
+  if (events.length === 0) return null;
+
+  const dailyMap = analyticsService.aggregateDailyStats(events);
+  return dailyMap.get(date) || null;
+}
+
+export function getStatsRange(startDate: string, endDate: string): DailyStats[] {
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+
+  const events = data.analyticsEvents.filter(e => {
+    return e.timestamp >= start.getTime() && e.timestamp <= end.getTime();
+  });
+
+  const dailyMap = analyticsService.aggregateDailyStats(events);
+  
+  const result: DailyStats[] = [];
+  const current = new Date(start);
+  
+  while (current <= end) {
+    const dateStr = current.toISOString().split('T')[0];
+    const stats = dailyMap.get(dateStr) || {
+      date: dateStr,
+      wordCount: 0,
+      characterCount: 0,
+      sessionCount: 0,
+      totalDuration: 0,
+      averageSpeed: 0,
+      contexts: {},
+      languages: {},
+      modes: {},
+    };
+    result.push(stats);
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
+}
+
+export function getAnalyticsSummary(period: AnalyticsPeriod): AnalyticsSummary {
+  const { start, end } = analyticsService.getDateRangeForPeriod(period);
+  
+  const events = data.analyticsEvents.filter(e => {
+    return e.timestamp >= start.getTime() && e.timestamp <= end.getTime();
+  });
+
+  const startStr = start.toISOString().split('T')[0];
+  const endStr = end.toISOString().split('T')[0];
+  const dailyStats = getStatsRange(startStr, endStr);
+
+  return analyticsService.generateSummary(events, dailyStats);
+}
+
+export function getTopSnippets(limit: number): Array<{ snippet: string; count: number }> {
+  const snippetCounts: Record<string, number> = {};
+  
+  for (const event of data.analyticsEvents) {
+    for (const snippet of event.snippetsUsed) {
+      snippetCounts[snippet] = (snippetCounts[snippet] || 0) + 1;
+    }
+  }
+
+  return Object.entries(snippetCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, limit)
+    .map(([snippet, count]) => ({ snippet, count }));
+}
+
+export function clearAnalyticsData(): void {
+  data.analyticsEvents = [];
+  saveData();
 }

@@ -13,6 +13,10 @@ import {
   SnippetProcessResult,
   UserProfile,
   DictationMode,
+  DictationEvent,
+  AnalyticsSummary,
+  DailyStats,
+  AnalyticsPeriod,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -162,4 +166,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   updateProfile: (updates: Partial<UserProfile>): Promise<void> =>
     ipcRenderer.invoke('profile:update', updates),
+
+  trackDictationEvent: (event: DictationEvent): Promise<void> =>
+    ipcRenderer.invoke('analytics:track', event),
+
+  getAnalyticsSummary: (period: AnalyticsPeriod): Promise<AnalyticsSummary> =>
+    ipcRenderer.invoke('analytics:summary', period),
+
+  getDailyStats: (date: string): Promise<DailyStats | null> =>
+    ipcRenderer.invoke('analytics:daily', date),
+
+  getStatsRange: (startDate: string, endDate: string): Promise<DailyStats[]> =>
+    ipcRenderer.invoke('analytics:range', startDate, endDate),
+
+  exportAnalytics: (format: 'json' | 'csv', period: AnalyticsPeriod): Promise<string> =>
+    ipcRenderer.invoke('analytics:export', format, period),
 });
