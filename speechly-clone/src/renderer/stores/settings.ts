@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Settings, DictationMode, TranslationSettings } from '../../shared/types';
-import { DEFAULT_TRANSLATION_SETTINGS } from '../../shared/constants';
+import { Settings, DictationMode, TranslationSettings, RecordingSettings } from '../../shared/types';
+import { DEFAULT_TRANSLATION_SETTINGS, DEFAULT_RECORDING_SETTINGS } from '../../shared/constants';
 
 interface SettingsStore {
   settings: Settings;
@@ -29,6 +29,7 @@ const defaultSettings: Settings = {
   launchAtStartup: false,
   appVersion: '1.0.0',
   translation: DEFAULT_TRANSLATION_SETTINGS,
+  recording: DEFAULT_RECORDING_SETTINGS,
 };
 
 export const useSettings = create<SettingsStore>((set, get) => ({

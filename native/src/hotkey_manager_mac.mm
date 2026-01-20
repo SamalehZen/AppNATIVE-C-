@@ -6,6 +6,7 @@
 #include <map>
 #include <mutex>
 #include <atomic>
+#include <thread>
 
 namespace speechly {
 
@@ -61,6 +62,28 @@ static UInt32 ConvertModifiers(uint32_t modifiers) {
     }
     
     return macMods;
+}
+
+static CGEventFlags GetModifierFlagForTrigger(TriggerKey key) {
+    switch (key) {
+        case TriggerKey::Ctrl: return kCGEventFlagMaskControl;
+        case TriggerKey::Alt: return kCGEventFlagMaskAlternate;
+        case TriggerKey::Shift: return kCGEventFlagMaskShift;
+        case TriggerKey::CapsLock: return kCGEventFlagMaskAlphaShift;
+        case TriggerKey::Fn: return kCGEventFlagMaskSecondaryFn;
+        default: return kCGEventFlagMaskControl;
+    }
+}
+
+static CGKeyCode GetKeyCodeForTrigger(TriggerKey key) {
+    switch (key) {
+        case TriggerKey::Ctrl: return kVK_Control;
+        case TriggerKey::Alt: return kVK_Option;
+        case TriggerKey::Shift: return kVK_Shift;
+        case TriggerKey::CapsLock: return kVK_CapsLock;
+        case TriggerKey::Fn: return kVK_Function;
+        default: return kVK_Control;
+    }
 }
 
 class HotkeyManager::Impl {
@@ -258,6 +281,212 @@ int RegisterGlobalHotkey(uint32_t modifiers, uint32_t keyCode, HotkeyCallback ca
 
 bool UnregisterGlobalHotkey(int32_t id) {
     return false;
+}
+
+struct DoubleTapListenerInfo {
+    TriggerKey key;
+    int thresholdMs;
+    DoubleTapCallback callback;
+    DoubleTapDetector detector;
+};
+
+struct HoldListenerInfo {
+    TriggerKey key;
+    HoldCallback callback;
+    HoldDetector detector;
+};
+
+class KeyListener::Impl {
+public:
+    std::atomic<bool> running{false};
+    std::map<int32_t, DoubleTapListenerInfo> doubleTapListeners;
+    std::map<int32_t, HoldListenerInfo> holdListeners;
+    std::mutex mutex;
+    int32_t nextId{1};
+    CFMachPortRef eventTap{nullptr};
+    CFRunLoopSourceRef runLoopSource{nullptr};
+    std::thread eventThread;
+    
+    static Impl* instance;
+    
+    static CGEventRef eventCallback(CGEventTapProxy proxy, CGEventType type, 
+                                    CGEventRef event, void* refcon) {
+        if (!instance) return event;
+        
+        if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
+            CGEventTapEnable(instance->eventTap, true);
+            return event;
+        }
+        
+        if (type != kCGEventFlagsChanged) {
+            return event;
+        }
+        
+        CGEventFlags flags = CGEventGetFlags(event);
+        CGKeyCode keyCode = static_cast<CGKeyCode>(CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode));
+        
+        std::lock_guard<std::mutex> lock(instance->mutex);
+        
+        for (auto& pair : instance->doubleTapListeners) {
+            CGKeyCode targetKeyCode = GetKeyCodeForTrigger(pair.second.key);
+            CGEventFlags targetFlag = GetModifierFlagForTrigger(pair.second.key);
+            
+            if (keyCode == targetKeyCode) {
+                bool isPressed = (flags & targetFlag) != 0;
+                
+                if (isPressed) {
+                    pair.second.detector.onKeyDown();
+                    if (pair.second.detector.tapCount >= 2) {
+                        pair.second.detector.reset();
+                        if (pair.second.callback) {
+                            dispatch_async(dispatch_get_main_queue(), ^{
+                                pair.second.callback("double-tap");
+                            });
+                        }
+                    }
+                } else {
+                    pair.second.detector.onKeyUp();
+                }
+            }
+        }
+        
+        for (auto& pair : instance->holdListeners) {
+            CGKeyCode targetKeyCode = GetKeyCodeForTrigger(pair.second.key);
+            CGEventFlags targetFlag = GetModifierFlagForTrigger(pair.second.key);
+            
+            if (keyCode == targetKeyCode) {
+                bool isPressed = (flags & targetFlag) != 0;
+                
+                if (isPressed && !pair.second.detector.isCurrentlyHeld()) {
+                    pair.second.detector.onKeyDown();
+                    if (pair.second.callback) {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            pair.second.callback("hold-start", 0);
+                        });
+                    }
+                } else if (!isPressed && pair.second.detector.isCurrentlyHeld()) {
+                    int duration = pair.second.detector.holdDurationMs();
+                    pair.second.detector.onKeyUp();
+                    if (pair.second.callback) {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            pair.second.callback("hold-end", duration);
+                        });
+                    }
+                }
+            }
+        }
+        
+        return event;
+    }
+    
+    void eventLoop() {
+        CGEventMask eventMask = CGEventMaskBit(kCGEventFlagsChanged);
+        
+        eventTap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
+                                    kCGEventTapOptionListenOnly, eventMask,
+                                    eventCallback, nullptr);
+        
+        if (!eventTap) {
+            running = false;
+            return;
+        }
+        
+        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0);
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, kCFRunLoopCommonModes);
+        CGEventTapEnable(eventTap, true);
+        
+        while (running) {
+            CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, false);
+        }
+        
+        if (eventTap) {
+            CGEventTapEnable(eventTap, false);
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), runLoopSource, kCFRunLoopCommonModes);
+            CFRelease(runLoopSource);
+            CFRelease(eventTap);
+            eventTap = nullptr;
+            runLoopSource = nullptr;
+        }
+    }
+};
+
+KeyListener::Impl* KeyListener::Impl::instance = nullptr;
+
+KeyListener::KeyListener() : impl_(new Impl()) {
+    impl_->instance = impl_;
+}
+
+KeyListener::~KeyListener() {
+    stop();
+    if (impl_->instance == impl_) {
+        impl_->instance = nullptr;
+    }
+    delete impl_;
+}
+
+int32_t KeyListener::registerDoubleTapListener(const std::string& key, int thresholdMs, DoubleTapCallback callback) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    
+    int32_t id = impl_->nextId++;
+    DoubleTapListenerInfo info;
+    info.key = HotkeyManager::parseTriggerKey(key);
+    info.thresholdMs = thresholdMs;
+    info.callback = callback;
+    info.detector.key = info.key;
+    info.detector.thresholdMs = thresholdMs;
+    
+    impl_->doubleTapListeners[id] = info;
+    return id;
+}
+
+int32_t KeyListener::registerHoldListener(const std::string& key, HoldCallback callback) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    
+    int32_t id = impl_->nextId++;
+    HoldListenerInfo info;
+    info.key = HotkeyManager::parseTriggerKey(key);
+    info.callback = callback;
+    info.detector.key = info.key;
+    
+    impl_->holdListeners[id] = info;
+    return id;
+}
+
+bool KeyListener::unregisterDoubleTapListener(int32_t id) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    return impl_->doubleTapListeners.erase(id) > 0;
+}
+
+bool KeyListener::unregisterHoldListener(int32_t id) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    return impl_->holdListeners.erase(id) > 0;
+}
+
+bool KeyListener::start() {
+    if (impl_->running) {
+        return true;
+    }
+    
+    impl_->running = true;
+    impl_->eventThread = std::thread(&Impl::eventLoop, impl_);
+    
+    return true;
+}
+
+void KeyListener::stop() {
+    if (!impl_->running) {
+        return;
+    }
+    
+    impl_->running = false;
+    
+    if (impl_->eventThread.joinable()) {
+        impl_->eventThread.join();
+    }
+}
+
+bool KeyListener::isRunning() const {
+    return impl_->running;
 }
 
 }

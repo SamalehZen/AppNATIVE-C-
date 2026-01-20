@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Mic, Globe, Keyboard, Brain, Database, 
-  Palette, Info, ExternalLink, Languages
+  Palette, Info, ExternalLink, Languages, Radio
 } from 'lucide-react';
 import { SettingsSection } from '../components/SettingsSection';
 import { HotkeyInput } from '../components/HotkeyInput';
 import { ApiKeyInput } from '../components/ApiKeyInput';
 import { Toggle } from '../components/Toggle';
 import { useSettings } from '../stores/settings';
-import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel } from '../../shared/types';
-import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS } from '../../shared/constants';
+import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey } from '../../shared/types';
+import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS, RECORDING_TRIGGER_MODES, TRIGGER_KEY_OPTIONS, DEFAULT_RECORDING_SETTINGS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
   const { settings, updateSettings, isLoading } = useSettings();
@@ -287,6 +287,181 @@ export const Settings: React.FC = () => {
               placeholder="Ctrl+Shift+V"
             />
           </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<Radio size={20} />}
+        title="Déclenchement de la dictée"
+        description="Configurez comment activer la reconnaissance vocale"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              Mode de déclenchement
+            </label>
+            <select
+              value={settings.recording?.triggerMode || 'double-tap'}
+              onChange={(e) => {
+                const newRecording = {
+                  ...DEFAULT_RECORDING_SETTINGS,
+                  ...settings.recording,
+                  triggerMode: e.target.value as RecordingTriggerMode,
+                };
+                updateSettings({ recording: newRecording });
+                window.electronAPI.updateRecordingSettings(newRecording);
+              }}
+              className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                        focus:border-accent-purple focus:outline-none cursor-pointer"
+            >
+              {RECORDING_TRIGGER_MODES.map((mode) => (
+                <option key={mode.value} value={mode.value}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-text-secondary mt-1">
+              {RECORDING_TRIGGER_MODES.find(m => m.value === (settings.recording?.triggerMode || 'double-tap'))?.description}
+            </p>
+          </div>
+
+          {settings.recording?.triggerMode === 'double-tap' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  Touche de double-tap
+                </label>
+                <select
+                  value={settings.recording?.doubleTapKey || 'ctrl'}
+                  onChange={(e) => {
+                    const newRecording = {
+                      ...DEFAULT_RECORDING_SETTINGS,
+                      ...settings.recording,
+                      doubleTapKey: e.target.value as TriggerKey,
+                    };
+                    updateSettings({ recording: newRecording });
+                    window.electronAPI.updateRecordingSettings(newRecording);
+                  }}
+                  className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                            focus:border-accent-purple focus:outline-none cursor-pointer"
+                >
+                  {TRIGGER_KEY_OPTIONS.map((key) => (
+                    <option key={key.value} value={key.value}>
+                      {key.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  Délai entre les taps: {settings.recording?.doubleTapThreshold || 300}ms
+                </label>
+                <input
+                  type="range"
+                  min={150}
+                  max={500}
+                  step={50}
+                  value={settings.recording?.doubleTapThreshold || 300}
+                  onChange={(e) => {
+                    const newRecording = {
+                      ...DEFAULT_RECORDING_SETTINGS,
+                      ...settings.recording,
+                      doubleTapThreshold: parseInt(e.target.value),
+                    };
+                    updateSettings({ recording: newRecording });
+                    window.electronAPI.updateRecordingSettings(newRecording);
+                  }}
+                  className="w-full h-2 bg-bg-tertiary rounded-lg appearance-none cursor-pointer accent-accent-purple"
+                />
+                <div className="flex justify-between text-xs text-text-secondary mt-1">
+                  <span>150ms (rapide)</span>
+                  <span>500ms (lent)</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {settings.recording?.triggerMode === 'hold' && (
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Touche à maintenir
+              </label>
+              <select
+                value={settings.recording?.holdKey || 'ctrl'}
+                onChange={(e) => {
+                  const newRecording = {
+                    ...DEFAULT_RECORDING_SETTINGS,
+                    ...settings.recording,
+                    holdKey: e.target.value as TriggerKey,
+                  };
+                  updateSettings({ recording: newRecording });
+                  window.electronAPI.updateRecordingSettings(newRecording);
+                }}
+                className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                          focus:border-accent-purple focus:outline-none cursor-pointer"
+              >
+                {TRIGGER_KEY_OPTIONS.map((key) => (
+                  <option key={key.value} value={key.value}>
+                    {key.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-text-secondary mt-1">
+                Maintenez cette touche pour enregistrer, relâchez pour arrêter
+              </p>
+            </div>
+          )}
+
+          <div className="border-t border-bg-tertiary pt-4 mt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-text-primary">Arrêt automatique après silence</span>
+                <p className="text-xs text-text-secondary">Arrête l'enregistrement après une période de silence</p>
+              </div>
+              <Toggle
+                checked={settings.recording?.autoStopAfterSilence || false}
+                onChange={(v) => {
+                  const newRecording = {
+                    ...DEFAULT_RECORDING_SETTINGS,
+                    ...settings.recording,
+                    autoStopAfterSilence: v,
+                  };
+                  updateSettings({ recording: newRecording });
+                  window.electronAPI.updateRecordingSettings(newRecording);
+                }}
+              />
+            </div>
+          </div>
+
+          {settings.recording?.autoStopAfterSilence && (
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Durée de silence avant arrêt: {settings.recording?.silenceThreshold || 3}s
+              </label>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={0.5}
+                value={settings.recording?.silenceThreshold || 3}
+                onChange={(e) => {
+                  const newRecording = {
+                    ...DEFAULT_RECORDING_SETTINGS,
+                    ...settings.recording,
+                    silenceThreshold: parseFloat(e.target.value),
+                  };
+                  updateSettings({ recording: newRecording });
+                  window.electronAPI.updateRecordingSettings(newRecording);
+                }}
+                className="w-full h-2 bg-bg-tertiary rounded-lg appearance-none cursor-pointer accent-accent-purple"
+              />
+              <div className="flex justify-between text-xs text-text-secondary mt-1">
+                <span>1s</span>
+                <span>10s</span>
+              </div>
+            </div>
+          )}
         </div>
       </SettingsSection>
 

@@ -5,6 +5,7 @@
 #include <functional>
 #include <cstdint>
 #include <map>
+#include <chrono>
 
 namespace speechly {
 
@@ -32,6 +33,44 @@ struct Hotkey {
 };
 
 using HotkeyCallback = std::function<void()>;
+using DoubleTapCallback = std::function<void(const std::string&)>;
+using HoldCallback = std::function<void(const std::string&, int)>;
+
+enum class TriggerKey {
+    Ctrl,
+    Alt,
+    Shift,
+    CapsLock,
+    Fn
+};
+
+struct DoubleTapDetector {
+    TriggerKey key;
+    int tapCount;
+    std::chrono::steady_clock::time_point lastTapTime;
+    int thresholdMs;
+    bool wasKeyUp;
+    
+    DoubleTapDetector() : key(TriggerKey::Ctrl), tapCount(0), thresholdMs(300), wasKeyUp(true) {}
+    
+    bool detectDoubleTap();
+    void reset();
+    void onKeyDown();
+    void onKeyUp();
+};
+
+struct HoldDetector {
+    TriggerKey key;
+    bool isHeld;
+    std::chrono::steady_clock::time_point holdStartTime;
+    
+    HoldDetector() : key(TriggerKey::Ctrl), isHeld(false) {}
+    
+    void onKeyDown();
+    void onKeyUp();
+    bool isCurrentlyHeld() const;
+    int holdDurationMs() const;
+};
 
 class HotkeyManager {
 public:
@@ -49,6 +88,26 @@ public:
     
     static Hotkey parseAccelerator(const std::string& accelerator);
     static std::string getAcceleratorString(uint32_t modifiers, uint32_t keyCode);
+    static TriggerKey parseTriggerKey(const std::string& keyName);
+
+private:
+    class Impl;
+    Impl* impl_;
+};
+
+class KeyListener {
+public:
+    KeyListener();
+    ~KeyListener();
+    
+    int32_t registerDoubleTapListener(const std::string& key, int thresholdMs, DoubleTapCallback callback);
+    int32_t registerHoldListener(const std::string& key, HoldCallback callback);
+    bool unregisterDoubleTapListener(int32_t id);
+    bool unregisterHoldListener(int32_t id);
+    
+    bool start();
+    void stop();
+    bool isRunning() const;
 
 private:
     class Impl;

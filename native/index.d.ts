@@ -49,6 +49,27 @@ export function unregisterAllHotkeys(): void;
 
 export function parseAccelerator(accelerator: string): HotkeyInfo;
 
+export type DoubleTapEvent = 'double-tap';
+export type HoldEvent = 'hold-start' | 'hold-end';
+
+export type DoubleTapCallback = (event: DoubleTapEvent) => void;
+export type HoldEventCallback = (event: HoldEvent, duration?: number) => void;
+
+export function registerDoubleTapListener(
+  key: string,
+  threshold: number,
+  callback: DoubleTapCallback
+): number;
+
+export function registerHoldListener(
+  key: string,
+  callback: HoldEventCallback
+): number;
+
+export function unregisterDoubleTapListener(id: number): boolean;
+
+export function unregisterHoldListener(id: number): boolean;
+
 export function getPlatform(): 'win32' | 'darwin' | 'linux' | 'unknown';
 
 export const Modifiers: {

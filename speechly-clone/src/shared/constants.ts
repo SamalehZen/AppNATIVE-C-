@@ -236,3 +236,28 @@ export const DEFAULT_TRANSLATION_SETTINGS = {
   preserveFormatting: true,
   formalityLevel: 'neutral' as const,
 };
+
+import type { RecordingSettings, RecordingTriggerMode, TriggerKey } from './types';
+
+export const DEFAULT_RECORDING_SETTINGS: RecordingSettings = {
+  triggerMode: 'double-tap' as RecordingTriggerMode,
+  doubleTapKey: 'ctrl' as TriggerKey,
+  doubleTapThreshold: 300,
+  holdKey: 'ctrl' as TriggerKey,
+  toggleHotkey: 'CommandOrControl+Shift+Space',
+  autoStopAfterSilence: false,
+  silenceThreshold: 3,
+};
+
+export const RECORDING_TRIGGER_MODES: { value: RecordingTriggerMode; label: string; description: string }[] = [
+  { value: 'double-tap', label: 'Double-tap (recommandé)', description: 'Appuyez deux fois rapidement pour démarrer/arrêter' },
+  { value: 'hold', label: 'Maintenir une touche', description: 'Maintenez la touche pour enregistrer' },
+  { value: 'toggle', label: 'Raccourci clavier', description: 'Utilisez un raccourci pour basculer' },
+];
+
+export const TRIGGER_KEY_OPTIONS: { value: TriggerKey; label: string }[] = [
+  { value: 'ctrl', label: 'Ctrl' },
+  { value: 'alt', label: 'Alt' },
+  { value: 'shift', label: 'Shift' },
+  { value: 'capslock', label: 'CapsLock' },
+];
