@@ -22,6 +22,9 @@ import {
   RecordingSettings,
   StyleProfile,
   StyleSampleText,
+  LanguagePreferences,
+  LanguageRegion,
+  LanguageDetectionResult,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -234,4 +237,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   learnFromCorrection: (original: string, corrected: string): Promise<void> =>
     ipcRenderer.invoke('style:learnFromCorrection', original, corrected),
+
+  getLanguagePreferences: (): Promise<LanguagePreferences> =>
+    ipcRenderer.invoke('language:getPreferences'),
+
+  addRecentLanguage: (code: string): Promise<void> =>
+    ipcRenderer.invoke('language:addRecent', code),
+
+  toggleFavoriteLanguage: (code: string): Promise<void> =>
+    ipcRenderer.invoke('language:toggleFavorite', code),
+
+  setDefaultRegion: (region: LanguageRegion | null): Promise<void> =>
+    ipcRenderer.invoke('language:setDefaultRegion', region),
+
+  detectLanguageAdvanced: (text: string): Promise<LanguageDetectionResult> =>
+    ipcRenderer.invoke('language:detectAdvanced', text),
 });

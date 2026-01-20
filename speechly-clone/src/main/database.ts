@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel, StyleProfile, StyleSampleText, DEFAULT_STYLE_PROFILE, StyleLearningSettings, DEFAULT_STYLE_LEARNING_SETTINGS } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel, StyleProfile, StyleSampleText, DEFAULT_STYLE_PROFILE, StyleLearningSettings, DEFAULT_STYLE_LEARNING_SETTINGS, LanguagePreferences, DEFAULT_LANGUAGE_PREFERENCES, LanguageRegion } from '../shared/types';
 import { DEFAULT_TRANSLATION_SETTINGS } from '../shared/constants';
 import { CONTEXT_NAMES } from '../shared/constants';
 import { analyticsService } from './services/analytics-service';
@@ -14,6 +14,7 @@ interface DatabaseData {
   profile: UserProfile | null;
   analyticsEvents: DictationEvent[];
   styleProfile: StyleProfile | null;
+  languagePreferences: LanguagePreferences;
   nextHistoryId: number;
   nextDictionaryId: number;
 }
@@ -26,6 +27,7 @@ let data: DatabaseData = {
   profile: null,
   analyticsEvents: [],
   styleProfile: null,
+  languagePreferences: { ...DEFAULT_LANGUAGE_PREFERENCES },
   nextHistoryId: 1,
   nextDictionaryId: 1,
 };
@@ -56,6 +58,7 @@ function loadData(): void {
         profile: loaded.profile || null,
         analyticsEvents: loaded.analyticsEvents || [],
         styleProfile: loaded.styleProfile || null,
+        languagePreferences: loaded.languagePreferences || { ...DEFAULT_LANGUAGE_PREFERENCES },
         nextHistoryId: loaded.nextHistoryId || 1,
         nextDictionaryId: loaded.nextDictionaryId || 1,
       };
@@ -584,4 +587,36 @@ export function getStyleSamples(limit: number): StyleSampleText[] {
 export function clearStyleProfile(): void {
   data.styleProfile = null;
   saveData();
+}
+
+export function getLanguagePreferences(): LanguagePreferences {
+  return { ...data.languagePreferences };
+}
+
+export function addRecentLanguage(code: string): void {
+  const recent = data.languagePreferences.recentLanguages.filter(c => c !== code);
+  recent.unshift(code);
+  data.languagePreferences.recentLanguages = recent.slice(0, 5);
+  saveData();
+}
+
+export function toggleFavoriteLanguage(code: string): void {
+  const favorites = data.languagePreferences.favoriteLanguages;
+  const index = favorites.indexOf(code);
+  if (index === -1) {
+    favorites.push(code);
+  } else {
+    favorites.splice(index, 1);
+  }
+  data.languagePreferences.favoriteLanguages = favorites;
+  saveData();
+}
+
+export function setDefaultRegion(region: LanguageRegion | null): void {
+  data.languagePreferences.defaultRegion = region;
+  saveData();
+}
+
+export function isFavoriteLanguage(code: string): boolean {
+  return data.languagePreferences.favoriteLanguages.includes(code);
 }
