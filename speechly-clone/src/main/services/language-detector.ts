@@ -1,4 +1,4 @@
-import { LanguageDetectionResult } from '../../shared/types';
+import { LanguageDetectionResult, GeminiModel } from '../../shared/types';
 import { languageService } from './language-service';
 import { getGeminiClient } from '../gemini';
 import { getSettings } from '../database';
@@ -142,12 +142,15 @@ class LanguageDetector {
         };
       }
 
+      const modelName: GeminiModel = settings?.geminiModel || 'gemini-2.0-flash';
+      const model = gemini.getGenerativeModel({ model: modelName });
+
       const prompt = `Detect the language of the following text. Return ONLY a JSON object with this exact format, no markdown, no code blocks:
 {"code":"<ISO language-region code like fr-FR or en-US>","confidence":<0-1 number>,"alternatives":[{"code":"<code>","confidence":<0-1>}]}
 
 Text to analyze: "${text.substring(0, 500)}"`;
 
-      const result = await gemini.generateContent(prompt);
+      const result = await model.generateContent(prompt);
       const response = await result.response;
       const responseText = response.text().trim();
 
