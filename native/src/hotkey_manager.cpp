@@ -6,6 +6,77 @@
 
 namespace speechly {
 
+bool DoubleTapDetector::detectDoubleTap() {
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTapTime).count();
+    
+    if (elapsed < thresholdMs && tapCount > 0) {
+        tapCount = 0;
+        return true;
+    }
+    
+    return false;
+}
+
+void DoubleTapDetector::reset() {
+    tapCount = 0;
+    wasKeyUp = true;
+}
+
+void DoubleTapDetector::onKeyDown() {
+    if (wasKeyUp) {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTapTime).count();
+        
+        if (elapsed > thresholdMs) {
+            tapCount = 1;
+        } else {
+            tapCount++;
+        }
+        
+        lastTapTime = now;
+        wasKeyUp = false;
+    }
+}
+
+void DoubleTapDetector::onKeyUp() {
+    wasKeyUp = true;
+}
+
+void HoldDetector::onKeyDown() {
+    if (!isHeld) {
+        isHeld = true;
+        holdStartTime = std::chrono::steady_clock::now();
+    }
+}
+
+void HoldDetector::onKeyUp() {
+    isHeld = false;
+}
+
+bool HoldDetector::isCurrentlyHeld() const {
+    return isHeld;
+}
+
+int HoldDetector::holdDurationMs() const {
+    if (!isHeld) return 0;
+    auto now = std::chrono::steady_clock::now();
+    return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(now - holdStartTime).count());
+}
+
+TriggerKey HotkeyManager::parseTriggerKey(const std::string& keyName) {
+    std::string key = keyName;
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    
+    if (key == "ctrl" || key == "control") return TriggerKey::Ctrl;
+    if (key == "alt" || key == "option") return TriggerKey::Alt;
+    if (key == "shift") return TriggerKey::Shift;
+    if (key == "capslock" || key == "caps") return TriggerKey::CapsLock;
+    if (key == "fn") return TriggerKey::Fn;
+    
+    return TriggerKey::Ctrl;
+}
+
 Hotkey HotkeyManager::parseAccelerator(const std::string& accelerator) {
     Hotkey hotkey;
     hotkey.modifiers = 0;
@@ -144,6 +215,40 @@ bool HotkeyManager::start() {
 void HotkeyManager::stop() {}
 
 bool HotkeyManager::isRunning() const {
+    return impl_->running;
+}
+
+class KeyListener::Impl {
+public:
+    bool running{false};
+};
+
+KeyListener::KeyListener() : impl_(new Impl()) {}
+KeyListener::~KeyListener() { delete impl_; }
+
+int32_t KeyListener::registerDoubleTapListener(const std::string& key, int thresholdMs, DoubleTapCallback callback) {
+    return -1;
+}
+
+int32_t KeyListener::registerHoldListener(const std::string& key, HoldCallback callback) {
+    return -1;
+}
+
+bool KeyListener::unregisterDoubleTapListener(int32_t id) {
+    return false;
+}
+
+bool KeyListener::unregisterHoldListener(int32_t id) {
+    return false;
+}
+
+bool KeyListener::start() {
+    return false;
+}
+
+void KeyListener::stop() {}
+
+bool KeyListener::isRunning() const {
     return impl_->running;
 }
 

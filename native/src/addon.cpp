@@ -11,9 +11,14 @@ namespace speechly {
 static std::unique_ptr<WindowDetector> g_windowDetector;
 static std::unique_ptr<TextInjector> g_textInjector;
 static std::unique_ptr<HotkeyManager> g_hotkeyManager;
+static std::unique_ptr<KeyListener> g_keyListener;
 static Napi::ThreadSafeFunction g_windowChangeCallback;
 static Napi::ThreadSafeFunction g_hotkeyCallbacks[256];
+static Napi::ThreadSafeFunction g_doubleTapCallbacks[256];
+static Napi::ThreadSafeFunction g_holdCallbacks[256];
 static std::atomic<int> g_nextHotkeyId{1};
+static std::atomic<int> g_nextDoubleTapId{1};
+static std::atomic<int> g_nextHoldId{1};
 
 Napi::Object GetActiveWindow(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
@@ -321,6 +326,148 @@ Napi::Value GetPlatform(const Napi::CallbackInfo& info) {
 #endif
 }
 
+Napi::Value RegisterDoubleTapListener(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 3 || !info[0].IsString() || !info[1].IsNumber() || !info[2].IsFunction()) {
+        Napi::TypeError::New(env, "Key string, threshold number, and callback expected").ThrowAsJavaScriptException();
+        return Napi::Number::New(env, -1);
+    }
+    
+    if (!g_keyListener) {
+        g_keyListener = std::make_unique<KeyListener>();
+        g_keyListener->start();
+    }
+    
+    std::string key = info[0].As<Napi::String>().Utf8Value();
+    int threshold = info[1].As<Napi::Number>().Int32Value();
+    Napi::Function callback = info[2].As<Napi::Function>();
+    
+    int listenerId = g_nextDoubleTapId++;
+    
+    if (listenerId < 256) {
+        g_doubleTapCallbacks[listenerId] = Napi::ThreadSafeFunction::New(
+            env,
+            callback,
+            "DoubleTapCallback" + std::to_string(listenerId),
+            0,
+            1
+        );
+        
+        int32_t result = g_keyListener->registerDoubleTapListener(key, threshold, [listenerId](const std::string& event) {
+            if (g_doubleTapCallbacks[listenerId]) {
+                std::string* eventCopy = new std::string(event);
+                g_doubleTapCallbacks[listenerId].BlockingCall(eventCopy, [](Napi::Env env, Napi::Function jsCallback, std::string* event) {
+                    jsCallback.Call({Napi::String::New(env, *event)});
+                    delete event;
+                });
+            }
+        });
+        
+        if (result >= 0) {
+            return Napi::Number::New(env, listenerId);
+        }
+    }
+    
+    return Napi::Number::New(env, -1);
+}
+
+Napi::Value RegisterHoldListener(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsFunction()) {
+        Napi::TypeError::New(env, "Key string and callback expected").ThrowAsJavaScriptException();
+        return Napi::Number::New(env, -1);
+    }
+    
+    if (!g_keyListener) {
+        g_keyListener = std::make_unique<KeyListener>();
+        g_keyListener->start();
+    }
+    
+    std::string key = info[0].As<Napi::String>().Utf8Value();
+    Napi::Function callback = info[1].As<Napi::Function>();
+    
+    int listenerId = g_nextHoldId++;
+    
+    if (listenerId < 256) {
+        g_holdCallbacks[listenerId] = Napi::ThreadSafeFunction::New(
+            env,
+            callback,
+            "HoldCallback" + std::to_string(listenerId),
+            0,
+            1
+        );
+        
+        int32_t result = g_keyListener->registerHoldListener(key, [listenerId](const std::string& event, int duration) {
+            if (g_holdCallbacks[listenerId]) {
+                std::string* eventCopy = new std::string(event);
+                int* durationCopy = new int(duration);
+                g_holdCallbacks[listenerId].BlockingCall(eventCopy, [durationCopy](Napi::Env env, Napi::Function jsCallback, std::string* event) {
+                    jsCallback.Call({
+                        Napi::String::New(env, *event),
+                        Napi::Number::New(env, *durationCopy)
+                    });
+                    delete event;
+                    delete durationCopy;
+                });
+            }
+        });
+        
+        if (result >= 0) {
+            return Napi::Number::New(env, listenerId);
+        }
+    }
+    
+    return Napi::Number::New(env, -1);
+}
+
+Napi::Value UnregisterDoubleTapListener(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1 || !info[0].IsNumber()) {
+        Napi::TypeError::New(env, "Listener ID expected").ThrowAsJavaScriptException();
+        return Napi::Boolean::New(env, false);
+    }
+    
+    int32_t id = info[0].As<Napi::Number>().Int32Value();
+    
+    if (!g_keyListener) {
+        return Napi::Boolean::New(env, false);
+    }
+    
+    bool success = g_keyListener->unregisterDoubleTapListener(id);
+    
+    if (success && id >= 0 && id < 256 && g_doubleTapCallbacks[id]) {
+        g_doubleTapCallbacks[id].Release();
+    }
+    
+    return Napi::Boolean::New(env, success);
+}
+
+Napi::Value UnregisterHoldListener(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    
+    if (info.Length() < 1 || !info[0].IsNumber()) {
+        Napi::TypeError::New(env, "Listener ID expected").ThrowAsJavaScriptException();
+        return Napi::Boolean::New(env, false);
+    }
+    
+    int32_t id = info[0].As<Napi::Number>().Int32Value();
+    
+    if (!g_keyListener) {
+        return Napi::Boolean::New(env, false);
+    }
+    
+    bool success = g_keyListener->unregisterHoldListener(id);
+    
+    if (success && id >= 0 && id < 256 && g_holdCallbacks[id]) {
+        g_holdCallbacks[id].Release();
+    }
+    
+    return Napi::Boolean::New(env, success);
+}
+
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getActiveWindow", Napi::Function::New(env, GetActiveWindow));
     exports.Set("startWindowWatcher", Napi::Function::New(env, StartWindowWatcher));
@@ -336,6 +483,11 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("unregisterHotkey", Napi::Function::New(env, UnregisterHotkey));
     exports.Set("unregisterAllHotkeys", Napi::Function::New(env, UnregisterAllHotkeys));
     exports.Set("parseAccelerator", Napi::Function::New(env, ParseAccelerator));
+    
+    exports.Set("registerDoubleTapListener", Napi::Function::New(env, RegisterDoubleTapListener));
+    exports.Set("registerHoldListener", Napi::Function::New(env, RegisterHoldListener));
+    exports.Set("unregisterDoubleTapListener", Napi::Function::New(env, UnregisterDoubleTapListener));
+    exports.Set("unregisterHoldListener", Napi::Function::New(env, UnregisterHoldListener));
     
     exports.Set("getPlatform", Napi::Function::New(env, GetPlatform));
     

@@ -19,6 +19,7 @@ import {
   AnalyticsPeriod,
   TranslationResult,
   TranslationOptions,
+  RecordingSettings,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -194,4 +195,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   detectLanguage: (text: string): Promise<{ language: string; confidence: number }> =>
     ipcRenderer.invoke('translate:detect', text),
+
+  onRecordingStart: (callback: () => void): void => {
+    ipcRenderer.on('recording:start', callback);
+  },
+
+  removeRecordingStartListener: (): void => {
+    ipcRenderer.removeAllListeners('recording:start');
+  },
+
+  onRecordingStop: (callback: () => void): void => {
+    ipcRenderer.on('recording:stop', callback);
+  },
+
+  removeRecordingStopListener: (): void => {
+    ipcRenderer.removeAllListeners('recording:stop');
+  },
+
+  updateRecordingSettings: (settings: RecordingSettings): Promise<void> =>
+    ipcRenderer.invoke('recording:updateSettings', settings),
 });

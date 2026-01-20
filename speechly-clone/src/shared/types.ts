@@ -1,5 +1,19 @@
 export type DictationMode = 'auto' | 'raw' | 'email' | 'prompt' | 'todo' | 'notes';
 
+export type RecordingTriggerMode = 'double-tap' | 'hold' | 'toggle';
+
+export type TriggerKey = 'ctrl' | 'alt' | 'shift' | 'capslock' | 'fn';
+
+export interface RecordingSettings {
+  triggerMode: RecordingTriggerMode;
+  doubleTapKey: TriggerKey;
+  doubleTapThreshold: number;
+  holdKey: TriggerKey;
+  toggleHotkey: string;
+  autoStopAfterSilence: boolean;
+  silenceThreshold: number;
+}
+
 export type FormalityLevel = 'formal' | 'neutral' | 'informal';
 
 export interface TranslationSettings {
@@ -112,6 +126,7 @@ export interface Settings {
   launchAtStartup: boolean;
   appVersion: string;
   translation: TranslationSettings;
+  recording: RecordingSettings;
 }
 
 export interface TranscriptHistory {
@@ -324,6 +339,11 @@ export interface ElectronAPI {
   removeNavigateListener: () => void;
   onToggleDictation: (callback: () => void) => void;
   removeToggleDictationListener: () => void;
+  onRecordingStart: (callback: () => void) => void;
+  removeRecordingStartListener: () => void;
+  onRecordingStop: (callback: () => void) => void;
+  removeRecordingStopListener: () => void;
+  updateRecordingSettings: (settings: RecordingSettings) => Promise<void>;
   getProfile: () => Promise<UserProfile | null>;
   saveProfile: (profile: UserProfile) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;

@@ -4,6 +4,7 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <X11/XKBlib.h>
+#include <X11/extensions/XInput2.h>
 #include <thread>
 #include <atomic>
 #include <map>
@@ -68,6 +69,17 @@ static KeySym ConvertKeyCode(uint32_t keyCode) {
         case 0x7A: return XK_F11;
         case 0x7B: return XK_F12;
         default: return NoSymbol;
+    }
+}
+
+static KeySym GetKeySymForTrigger(TriggerKey key) {
+    switch (key) {
+        case TriggerKey::Ctrl: return XK_Control_L;
+        case TriggerKey::Alt: return XK_Alt_L;
+        case TriggerKey::Shift: return XK_Shift_L;
+        case TriggerKey::CapsLock: return XK_Caps_Lock;
+        case TriggerKey::Fn: return NoSymbol;
+        default: return XK_Control_L;
     }
 }
 
@@ -270,6 +282,220 @@ int RegisterGlobalHotkey(uint32_t modifiers, uint32_t keyCode, HotkeyCallback ca
 
 bool UnregisterGlobalHotkey(int32_t id) {
     return false;
+}
+
+struct DoubleTapListenerInfo {
+    TriggerKey key;
+    int thresholdMs;
+    DoubleTapCallback callback;
+    DoubleTapDetector detector;
+    KeyCode keycode;
+};
+
+struct HoldListenerInfo {
+    TriggerKey key;
+    HoldCallback callback;
+    HoldDetector detector;
+    KeyCode keycode;
+};
+
+class KeyListener::Impl {
+public:
+    std::atomic<bool> running{false};
+    std::thread watcherThread;
+    std::map<int32_t, DoubleTapListenerInfo> doubleTapListeners;
+    std::map<int32_t, HoldListenerInfo> holdListeners;
+    std::mutex mutex;
+    int32_t nextId{1};
+    
+    void watchLoop() {
+        Display* dpy = XOpenDisplay(nullptr);
+        if (!dpy) {
+            running = false;
+            return;
+        }
+        
+        int xiOpcode, xiEvent, xiError;
+        if (!XQueryExtension(dpy, "XInputExtension", &xiOpcode, &xiEvent, &xiError)) {
+            XCloseDisplay(dpy);
+            running = false;
+            return;
+        }
+        
+        Window root = DefaultRootWindow(dpy);
+        
+        XIEventMask eventMask;
+        unsigned char mask[XIMaskLen(XI_LASTEVENT)] = {0};
+        eventMask.deviceid = XIAllMasterDevices;
+        eventMask.mask_len = sizeof(mask);
+        eventMask.mask = mask;
+        XISetMask(mask, XI_RawKeyPress);
+        XISetMask(mask, XI_RawKeyRelease);
+        
+        XISelectEvents(dpy, root, &eventMask, 1);
+        XSync(dpy, False);
+        
+        while (running) {
+            while (XPending(dpy) > 0) {
+                XEvent event;
+                XNextEvent(dpy, &event);
+                
+                if (event.xcookie.type == GenericEvent && event.xcookie.extension == xiOpcode) {
+                    if (XGetEventData(dpy, &event.xcookie)) {
+                        XIRawEvent* rawEvent = static_cast<XIRawEvent*>(event.xcookie.data);
+                        KeyCode keycode = static_cast<KeyCode>(rawEvent->detail);
+                        bool isKeyDown = (rawEvent->evtype == XI_RawKeyPress);
+                        bool isKeyUp = (rawEvent->evtype == XI_RawKeyRelease);
+                        
+                        std::lock_guard<std::mutex> lock(mutex);
+                        
+                        for (auto& pair : doubleTapListeners) {
+                            if (pair.second.keycode == keycode) {
+                                if (isKeyDown) {
+                                    pair.second.detector.onKeyDown();
+                                    if (pair.second.detector.tapCount >= 2) {
+                                        pair.second.detector.reset();
+                                        if (pair.second.callback) {
+                                            pair.second.callback("double-tap");
+                                        }
+                                    }
+                                } else if (isKeyUp) {
+                                    pair.second.detector.onKeyUp();
+                                }
+                            }
+                        }
+                        
+                        for (auto& pair : holdListeners) {
+                            if (pair.second.keycode == keycode) {
+                                if (isKeyDown && !pair.second.detector.isCurrentlyHeld()) {
+                                    pair.second.detector.onKeyDown();
+                                    if (pair.second.callback) {
+                                        pair.second.callback("hold-start", 0);
+                                    }
+                                } else if (isKeyUp && pair.second.detector.isCurrentlyHeld()) {
+                                    int duration = pair.second.detector.holdDurationMs();
+                                    pair.second.detector.onKeyUp();
+                                    if (pair.second.callback) {
+                                        pair.second.callback("hold-end", duration);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        XFreeEventData(dpy, &event.xcookie);
+                    }
+                }
+            }
+            
+            usleep(10000);
+        }
+        
+        XCloseDisplay(dpy);
+    }
+};
+
+KeyListener::KeyListener() : impl_(new Impl()) {}
+
+KeyListener::~KeyListener() {
+    stop();
+    delete impl_;
+}
+
+int32_t KeyListener::registerDoubleTapListener(const std::string& key, int thresholdMs, DoubleTapCallback callback) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    
+    Display* dpy = XOpenDisplay(nullptr);
+    if (!dpy) {
+        return -1;
+    }
+    
+    TriggerKey triggerKey = HotkeyManager::parseTriggerKey(key);
+    KeySym keysym = GetKeySymForTrigger(triggerKey);
+    if (keysym == NoSymbol) {
+        XCloseDisplay(dpy);
+        return -1;
+    }
+    
+    KeyCode keycode = XKeysymToKeycode(dpy, keysym);
+    XCloseDisplay(dpy);
+    
+    int32_t id = impl_->nextId++;
+    DoubleTapListenerInfo info;
+    info.key = triggerKey;
+    info.thresholdMs = thresholdMs;
+    info.callback = callback;
+    info.detector.key = triggerKey;
+    info.detector.thresholdMs = thresholdMs;
+    info.keycode = keycode;
+    
+    impl_->doubleTapListeners[id] = info;
+    return id;
+}
+
+int32_t KeyListener::registerHoldListener(const std::string& key, HoldCallback callback) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    
+    Display* dpy = XOpenDisplay(nullptr);
+    if (!dpy) {
+        return -1;
+    }
+    
+    TriggerKey triggerKey = HotkeyManager::parseTriggerKey(key);
+    KeySym keysym = GetKeySymForTrigger(triggerKey);
+    if (keysym == NoSymbol) {
+        XCloseDisplay(dpy);
+        return -1;
+    }
+    
+    KeyCode keycode = XKeysymToKeycode(dpy, keysym);
+    XCloseDisplay(dpy);
+    
+    int32_t id = impl_->nextId++;
+    HoldListenerInfo info;
+    info.key = triggerKey;
+    info.callback = callback;
+    info.detector.key = triggerKey;
+    info.keycode = keycode;
+    
+    impl_->holdListeners[id] = info;
+    return id;
+}
+
+bool KeyListener::unregisterDoubleTapListener(int32_t id) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    return impl_->doubleTapListeners.erase(id) > 0;
+}
+
+bool KeyListener::unregisterHoldListener(int32_t id) {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    return impl_->holdListeners.erase(id) > 0;
+}
+
+bool KeyListener::start() {
+    if (impl_->running) {
+        return true;
+    }
+    
+    impl_->running = true;
+    impl_->watcherThread = std::thread(&Impl::watchLoop, impl_);
+    
+    return true;
+}
+
+void KeyListener::stop() {
+    if (!impl_->running) {
+        return;
+    }
+    
+    impl_->running = false;
+    
+    if (impl_->watcherThread.joinable()) {
+        impl_->watcherThread.join();
+    }
+}
+
+bool KeyListener::isRunning() const {
+    return impl_->running;
 }
 
 }

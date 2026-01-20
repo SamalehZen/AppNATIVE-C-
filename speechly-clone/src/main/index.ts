@@ -1,14 +1,18 @@
-import { app, BrowserWindow, globalShortcut } from 'electron';
+import { app, BrowserWindow, globalShortcut, ipcMain } from 'electron';
 import path from 'path';
 import { initDatabase, closeDatabase, getSettings, saveSettings } from './database';
 import { registerIpcHandlers } from './ipc-handlers';
 import { TrayManager } from './tray';
+import { createRecordingTriggerService, RecordingTriggerService } from './services/recording-trigger';
+import { RecordingSettings } from '../shared/types';
+import { DEFAULT_RECORDING_SETTINGS } from '../shared/constants';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;
+let recordingTrigger: RecordingTriggerService | null = null;
 
 const isHidden = process.argv.includes('--hidden');
 
@@ -108,6 +112,31 @@ function setAutoLaunch(enabled: boolean): void {
   saveSettings({ launchAtStartup: enabled });
 }
 
+function initRecordingTrigger(): void {
+  const settings = getSettings();
+  const recordingSettings: RecordingSettings = settings?.recording || DEFAULT_RECORDING_SETTINGS;
+
+  recordingTrigger = createRecordingTriggerService(
+    () => {
+      mainWindow?.webContents.send('recording:start');
+      trayManager?.setRecordingState(true);
+    },
+    () => {
+      mainWindow?.webContents.send('recording:stop');
+      trayManager?.setRecordingState(false);
+    }
+  );
+
+  recordingTrigger.setMode(recordingSettings.triggerMode, recordingSettings);
+}
+
+function updateRecordingSettings(settings: RecordingSettings): void {
+  if (recordingTrigger) {
+    recordingTrigger.updateSettings(settings);
+  }
+  saveSettings({ recording: settings });
+}
+
 export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
@@ -116,13 +145,18 @@ export function getTrayManager(): TrayManager | null {
   return trayManager;
 }
 
-export { updateHotkey, setAutoLaunch };
+export { updateHotkey, setAutoLaunch, updateRecordingSettings };
 
 app.whenReady().then(async () => {
   await initDatabase();
   registerIpcHandlers();
   createWindow();
   registerGlobalShortcuts();
+  initRecordingTrigger();
+
+  ipcMain.handle('recording:updateSettings', (_, settings: RecordingSettings) => {
+    updateRecordingSettings(settings);
+  });
 });
 
 app.on('window-all-closed', () => {
