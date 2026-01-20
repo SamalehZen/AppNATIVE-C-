@@ -1,0 +1,105 @@
+name: Build Electron App
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: speechly-clone/package-lock.json
+
+      - name: Install dependencies
+        working-directory: speechly-clone
+        run: npm ci
+
+      - name: Build Windows installer
+        working-directory: speechly-clone
+        run: npm run make:win
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: speechly-clone-windows
+          path: speechly-clone/out/make/squirrel.windows/**/*
+          retention-days: 30
+
+  build-mac:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: speechly-clone/package-lock.json
+
+      - name: Install dependencies
+        working-directory: speechly-clone
+        run: npm ci
+
+      - name: Build macOS app
+        working-directory: speechly-clone
+        run: npm run make:mac
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: speechly-clone-macos
+          path: |
+            speechly-clone/out/make/*.dmg
+            speechly-clone/out/make/zip/**/*
+          retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: speechly-clone/package-lock.json
+
+      - name: Install dependencies
+        working-directory: speechly-clone
+        run: npm ci
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev rpm
+
+      - name: Build Linux packages
+        working-directory: speechly-clone
+        run: npm run make:linux
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: speechly-clone-linux
+          path: |
+            speechly-clone/out/make/deb/**/*
+            speechly-clone/out/make/rpm/**/*
+          retention-days: 30
