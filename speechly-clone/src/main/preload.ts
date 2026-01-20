@@ -20,6 +20,8 @@ import {
   TranslationResult,
   TranslationOptions,
   RecordingSettings,
+  StyleProfile,
+  StyleSampleText,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -214,4 +216,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   updateRecordingSettings: (settings: RecordingSettings): Promise<void> =>
     ipcRenderer.invoke('recording:updateSettings', settings),
+
+  getStyleProfile: (): Promise<StyleProfile | null> =>
+    ipcRenderer.invoke('style:getProfile'),
+
+  saveStyleProfile: (profile: StyleProfile): Promise<void> =>
+    ipcRenderer.invoke('style:saveProfile', profile),
+
+  addStyleSample: (text: string, context: string): Promise<void> =>
+    ipcRenderer.invoke('style:addSample', text, context),
+
+  getStyleSamples: (limit: number): Promise<StyleSampleText[]> =>
+    ipcRenderer.invoke('style:getSamples', limit),
+
+  clearStyleProfile: (): Promise<void> =>
+    ipcRenderer.invoke('style:clearProfile'),
+
+  learnFromCorrection: (original: string, corrected: string): Promise<void> =>
+    ipcRenderer.invoke('style:learnFromCorrection', original, corrected),
 });

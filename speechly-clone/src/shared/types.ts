@@ -1,5 +1,117 @@
 export type DictationMode = 'auto' | 'raw' | 'email' | 'prompt' | 'todo' | 'notes';
 
+export interface StyleProfileMetrics {
+  averageSentenceLength: number;
+  vocabularyRichness: number;
+  formalityScore: number;
+  punctuationStyle: {
+    semicolonUsage: number;
+    exclamationUsage: number;
+    ellipsisUsage: number;
+  };
+}
+
+export interface StyleProfilePatterns {
+  greetings: string[];
+  closings: string[];
+  transitions: string[];
+  fillers: string[];
+}
+
+export interface StyleProfileVocabulary {
+  frequentWords: Array<{ word: string; count: number }>;
+  technicalTerms: string[];
+  avoidedWords: string[];
+}
+
+export interface StyleSampleText {
+  context: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface StyleTrainingStats {
+  totalSamples: number;
+  lastTrainingDate: number;
+  confidenceScore: number;
+}
+
+export interface StyleProfile {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  metrics: StyleProfileMetrics;
+  patterns: StyleProfilePatterns;
+  vocabulary: StyleProfileVocabulary;
+  sampleTexts: StyleSampleText[];
+  trainingStats: StyleTrainingStats;
+}
+
+export interface StyleLearningSettings {
+  enabled: boolean;
+  autoLearn: boolean;
+  minSamplesBeforeUse: number;
+  contextSpecificLearning: boolean;
+}
+
+export interface TextMetrics {
+  sentenceCount: number;
+  wordCount: number;
+  averageSentenceLength: number;
+  uniqueWords: Set<string>;
+  punctuationUsage: {
+    semicolonUsage: number;
+    exclamationUsage: number;
+    ellipsisUsage: number;
+  };
+  formalityIndicators: {
+    formalityScore: number;
+    indicators: string[];
+  };
+}
+
+export const DEFAULT_STYLE_PROFILE: StyleProfile = {
+  id: 'default',
+  name: 'Mon Style',
+  createdAt: 0,
+  updatedAt: 0,
+  metrics: {
+    averageSentenceLength: 0,
+    vocabularyRichness: 0,
+    formalityScore: 0.5,
+    punctuationStyle: {
+      semicolonUsage: 0,
+      exclamationUsage: 0,
+      ellipsisUsage: 0,
+    },
+  },
+  patterns: {
+    greetings: [],
+    closings: [],
+    transitions: [],
+    fillers: [],
+  },
+  vocabulary: {
+    frequentWords: [],
+    technicalTerms: [],
+    avoidedWords: [],
+  },
+  sampleTexts: [],
+  trainingStats: {
+    totalSamples: 0,
+    lastTrainingDate: 0,
+    confidenceScore: 0,
+  },
+};
+
+export const DEFAULT_STYLE_LEARNING_SETTINGS: StyleLearningSettings = {
+  enabled: true,
+  autoLearn: true,
+  minSamplesBeforeUse: 20,
+  contextSpecificLearning: false,
+};
+
 export type RecordingTriggerMode = 'double-tap' | 'hold' | 'toggle';
 
 export type TriggerKey = 'ctrl' | 'alt' | 'shift' | 'capslock' | 'fn';
@@ -127,6 +239,7 @@ export interface Settings {
   appVersion: string;
   translation: TranslationSettings;
   recording: RecordingSettings;
+  styleLearning: StyleLearningSettings;
 }
 
 export interface TranscriptHistory {
@@ -352,6 +465,12 @@ export interface ElectronAPI {
   getDailyStats: (date: string) => Promise<DailyStats | null>;
   getStatsRange: (startDate: string, endDate: string) => Promise<DailyStats[]>;
   exportAnalytics: (format: 'json' | 'csv', period: AnalyticsPeriod) => Promise<string>;
+  getStyleProfile: () => Promise<StyleProfile | null>;
+  saveStyleProfile: (profile: StyleProfile) => Promise<void>;
+  addStyleSample: (text: string, context: string) => Promise<void>;
+  getStyleSamples: (limit: number) => Promise<StyleSampleText[]>;
+  clearStyleProfile: () => Promise<void>;
+  learnFromCorrection: (original: string, corrected: string) => Promise<void>;
 }
 
 export const SNIPPET_CATEGORIES: { value: SnippetCategory; label: string; icon: string }[] = [

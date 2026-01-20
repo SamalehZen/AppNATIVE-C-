@@ -233,6 +233,20 @@ export const Home: React.FC = () => {
           wasTranslated = !!translated;
         }
 
+        if (settings?.styleLearning?.autoLearn && settings?.styleLearning?.enabled) {
+          const textForLearning = cleanedText || textToClean;
+          if (textForLearning.length > 50) {
+            try {
+              await window.electronAPI.addStyleSample(
+                textForLearning,
+                activeContext?.type || 'general'
+              );
+            } catch (error) {
+              console.error('Failed to add style sample:', error);
+            }
+          }
+        }
+
         await trackDictation(textToClean, duration, wasCleanedUp, usedSnippetsRef.current, wasTranslated);
         usedSnippetsRef.current = [];
       }

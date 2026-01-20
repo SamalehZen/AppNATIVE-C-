@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel, StyleProfile, StyleSampleText, DEFAULT_STYLE_PROFILE, StyleLearningSettings, DEFAULT_STYLE_LEARNING_SETTINGS } from '../shared/types';
 import { DEFAULT_TRANSLATION_SETTINGS } from '../shared/constants';
 import { CONTEXT_NAMES } from '../shared/constants';
 import { analyticsService } from './services/analytics-service';
@@ -13,6 +13,7 @@ interface DatabaseData {
   snippets: Snippet[];
   profile: UserProfile | null;
   analyticsEvents: DictationEvent[];
+  styleProfile: StyleProfile | null;
   nextHistoryId: number;
   nextDictionaryId: number;
 }
@@ -24,6 +25,7 @@ let data: DatabaseData = {
   snippets: [],
   profile: null,
   analyticsEvents: [],
+  styleProfile: null,
   nextHistoryId: 1,
   nextDictionaryId: 1,
 };
@@ -53,6 +55,7 @@ function loadData(): void {
         snippets: loaded.snippets || [],
         profile: loaded.profile || null,
         analyticsEvents: loaded.analyticsEvents || [],
+        styleProfile: loaded.styleProfile || null,
         nextHistoryId: loaded.nextHistoryId || 1,
         nextDictionaryId: loaded.nextDictionaryId || 1,
       };
@@ -80,6 +83,7 @@ const DEFAULT_SETTINGS: Omit<Settings, 'appVersion'> = {
   minimizeToTray: true,
   launchAtStartup: false,
   translation: DEFAULT_TRANSLATION_SETTINGS,
+  styleLearning: DEFAULT_STYLE_LEARNING_SETTINGS,
 };
 
 export async function initDatabase(): Promise<void> {
@@ -155,6 +159,7 @@ export function getSettings(): Settings | null {
     theme: isValidTheme(data.settings.theme) ? data.settings.theme : 'dark',
     appVersion: app.getVersion(),
     translation: data.settings.translation || DEFAULT_TRANSLATION_SETTINGS,
+    styleLearning: data.settings.styleLearning || DEFAULT_STYLE_LEARNING_SETTINGS,
   };
 }
 
@@ -524,5 +529,59 @@ export function getTopSnippets(limit: number): Array<{ snippet: string; count: n
 
 export function clearAnalyticsData(): void {
   data.analyticsEvents = [];
+  saveData();
+}
+
+export function getStyleProfile(): StyleProfile | null {
+  return data.styleProfile;
+}
+
+export function saveStyleProfile(profile: StyleProfile): void {
+  data.styleProfile = {
+    ...profile,
+    updatedAt: Date.now(),
+  };
+  saveData();
+}
+
+export function addStyleSample(text: string, context: string): void {
+  if (!data.styleProfile) {
+    data.styleProfile = {
+      ...DEFAULT_STYLE_PROFILE,
+      id: `style-${Date.now()}`,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+  }
+
+  const existingIndex = data.styleProfile.sampleTexts.findIndex(
+    s => s.text === text.trim()
+  );
+  if (existingIndex !== -1) return;
+
+  data.styleProfile.sampleTexts.push({
+    context,
+    text: text.trim().substring(0, 500),
+    timestamp: Date.now(),
+  });
+
+  if (data.styleProfile.sampleTexts.length > 100) {
+    data.styleProfile.sampleTexts = data.styleProfile.sampleTexts.slice(-100);
+  }
+
+  data.styleProfile.trainingStats.totalSamples = data.styleProfile.sampleTexts.length;
+  data.styleProfile.trainingStats.lastTrainingDate = Date.now();
+  data.styleProfile.updatedAt = Date.now();
+
+  saveData();
+}
+
+export function getStyleSamples(limit: number): StyleSampleText[] {
+  if (!data.styleProfile) return [];
+  return data.styleProfile.sampleTexts.slice(-limit);
+}
+
+export function clearStyleProfile(): void {
+  data.styleProfile = null;
   saveData();
 }

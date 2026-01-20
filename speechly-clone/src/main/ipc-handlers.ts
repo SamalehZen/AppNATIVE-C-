@@ -25,11 +25,17 @@ import {
   trackDictationEvent,
   getAnalyticsSummary,
   getDailyStats,
-  getStatsRange
+  getStatsRange,
+  getStyleProfile,
+  saveStyleProfile,
+  addStyleSample,
+  getStyleSamples,
+  clearStyleProfile
 } from './database';
 import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto, cleanupWithMode } from './gemini';
 import { translateText, detectLanguage, resetTranslationGenAI } from './services/translation-service';
-import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode, DictationEvent, AnalyticsPeriod, TranslationOptions } from '../shared/types';
+import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode, DictationEvent, AnalyticsPeriod, TranslationOptions, StyleProfile } from '../shared/types';
+import { getStyleLearner } from './services/style-learner';
 import { exportAnalytics } from './services/analytics-export';
 import { getContextDetector } from './services/context-detector';
 import { updateHotkey, setAutoLaunch, getTrayManager } from './index';
@@ -326,5 +332,40 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('translate:detect', async (_, text: string) => {
     return detectLanguage(text);
+  });
+
+  ipcMain.handle('style:getProfile', async () => {
+    return getStyleProfile();
+  });
+
+  ipcMain.handle('style:saveProfile', async (_, profile: StyleProfile) => {
+    saveStyleProfile(profile);
+  });
+
+  ipcMain.handle('style:addSample', async (_, text: string, context: string) => {
+    addStyleSample(text, context);
+    const profile = getStyleProfile();
+    if (profile) {
+      const learner = getStyleLearner(profile);
+      await learner.learnFromSample(text, context);
+      saveStyleProfile(learner.getProfile());
+    }
+  });
+
+  ipcMain.handle('style:getSamples', async (_, limit: number) => {
+    return getStyleSamples(limit);
+  });
+
+  ipcMain.handle('style:clearProfile', async () => {
+    clearStyleProfile();
+  });
+
+  ipcMain.handle('style:learnFromCorrection', async (_, original: string, corrected: string) => {
+    const profile = getStyleProfile();
+    if (profile) {
+      const learner = getStyleLearner(profile);
+      await learner.learnFromCorrection(original, corrected);
+      saveStyleProfile(learner.getProfile());
+    }
   });
 }
