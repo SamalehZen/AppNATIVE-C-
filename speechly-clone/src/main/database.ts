@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel, StyleProfile, StyleSampleText, DEFAULT_STYLE_PROFILE, StyleLearningSettings, DEFAULT_STYLE_LEARNING_SETTINGS } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel, StyleProfile, StyleSampleText, DEFAULT_STYLE_PROFILE, StyleLearningSettings } from '../shared/types';
 import { DEFAULT_TRANSLATION_SETTINGS, DEFAULT_RECORDING_SETTINGS, DEFAULT_STYLE_LEARNING_SETTINGS } from '../shared/constants';
 import { CONTEXT_NAMES } from '../shared/constants';
 import { analyticsService } from './services/analytics-service';

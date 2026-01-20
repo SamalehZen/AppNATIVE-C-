@@ -9,8 +9,8 @@ import { HotkeyInput } from '../components/HotkeyInput';
 import { ApiKeyInput } from '../components/ApiKeyInput';
 import { Toggle } from '../components/Toggle';
 import { useSettings } from '../stores/settings';
-import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey, DEFAULT_STYLE_LEARNING_SETTINGS } from '../../shared/types';
-import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS, RECORDING_TRIGGER_MODES, TRIGGER_KEY_OPTIONS, DEFAULT_RECORDING_SETTINGS } from '../../shared/constants';
+import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey } from '../../shared/types';
+import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS, RECORDING_TRIGGER_MODES, TRIGGER_KEY_OPTIONS, DEFAULT_RECORDING_SETTINGS, DEFAULT_STYLE_LEARNING_SETTINGS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();

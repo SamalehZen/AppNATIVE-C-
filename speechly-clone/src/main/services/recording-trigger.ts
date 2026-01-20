@@ -1,6 +1,13 @@
 import { RecordingTriggerMode, RecordingSettings, TriggerKey } from '../../shared/types';
 
-let native: typeof import('../../../native') | null = null;
+interface NativeModule {
+  registerDoubleTapListener: (key: TriggerKey, threshold: number, callback: (event: string) => void) => number;
+  registerHoldListener: (key: TriggerKey, callback: (event: string, duration: number) => void) => number;
+  unregisterDoubleTapListener: (id: number) => void;
+  unregisterHoldListener: (id: number) => void;
+}
+
+let native: NativeModule | null = null;
 
 try {
   native = require('../../../native');
@@ -51,7 +58,7 @@ export class RecordingTriggerService {
     this.doubleTapListenerId = native.registerDoubleTapListener(
       settings.doubleTapKey,
       settings.doubleTapThreshold,
-      (event) => {
+      (event: string) => {
         if (event === 'double-tap') {
           if (!this.isRecording) {
             this.isRecording = true;
@@ -70,7 +77,7 @@ export class RecordingTriggerService {
 
     this.holdListenerId = native.registerHoldListener(
       settings.holdKey,
-      (event, duration) => {
+      (event: string, duration: number) => {
         if (event === 'hold-start') {
           if (!this.isRecording) {
             this.isRecording = true;

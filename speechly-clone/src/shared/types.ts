@@ -105,13 +105,6 @@ export const DEFAULT_STYLE_PROFILE: StyleProfile = {
   },
 };
 
-export const DEFAULT_STYLE_LEARNING_SETTINGS: StyleLearningSettings = {
-  enabled: true,
-  autoLearn: true,
-  minSamplesBeforeUse: 20,
-  contextSpecificLearning: false,
-};
-
 export type RecordingTriggerMode = 'double-tap' | 'hold' | 'toggle';
 
 export type TriggerKey = 'ctrl' | 'alt' | 'shift' | 'capslock' | 'fn';
