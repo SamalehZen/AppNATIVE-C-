@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Home } from './pages/Home';
@@ -9,15 +9,53 @@ import { Snippets } from './pages/Snippets';
 import { Profile } from './pages/Profile';
 import { Analytics } from './pages/Analytics';
 import { StyleProfile } from './pages/StyleProfile';
+import { LockScreen } from './components/LockScreen';
 import { useSettings } from './stores/settings';
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const { loadSettings, settings } = useSettings();
+  const [isLocked, setIsLocked] = useState(false);
+  const [checkingLock, setCheckingLock] = useState(true);
+
+  const checkLockStatus = useCallback(async () => {
+    try {
+      const locked = await window.electronAPI.securityIsLocked();
+      setIsLocked(locked);
+    } catch (e) {
+      console.error('Failed to check lock status:', e);
+    } finally {
+      setCheckingLock(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadSettings();
-  }, [loadSettings]);
+    checkLockStatus();
+  }, [loadSettings, checkLockStatus]);
+
+  useEffect(() => {
+    if (window.electronAPI?.onAppLocked) {
+      window.electronAPI.onAppLocked(() => {
+        setIsLocked(true);
+      });
+    }
+
+    if (window.electronAPI?.onAppUnlocked) {
+      window.electronAPI.onAppUnlocked(() => {
+        setIsLocked(false);
+      });
+    }
+
+    return () => {
+      if (window.electronAPI?.removeAppLockedListener) {
+        window.electronAPI.removeAppLockedListener();
+      }
+      if (window.electronAPI?.removeAppUnlockedListener) {
+        window.electronAPI.removeAppUnlockedListener();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (window.electronAPI?.onNavigate) {
@@ -38,6 +76,22 @@ const AppContent: React.FC = () => {
       navigate('/settings');
     }
   }, [settings.geminiApiKey, navigate]);
+
+  const handleUnlock = useCallback(() => {
+    setIsLocked(false);
+  }, []);
+
+  if (checkingLock) {
+    return (
+      <div className="flex h-screen bg-bg-primary items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-purple"></div>
+      </div>
+    );
+  }
+
+  if (isLocked) {
+    return <LockScreen onUnlock={handleUnlock} />;
+  }
 
   return (
     <div className="flex h-screen bg-bg-primary text-text-primary">

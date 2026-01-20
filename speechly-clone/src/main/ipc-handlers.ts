@@ -43,7 +43,9 @@ import { languageDetector } from './services/language-detector';
 import { getStyleLearner } from './services/style-learner';
 import { exportAnalytics } from './services/analytics-export';
 import { getContextDetector } from './services/context-detector';
-import { updateHotkey, setAutoLaunch, getTrayManager } from './index';
+import { updateHotkey, setAutoLaunch, getTrayManager, isLocked, lockApp, unlockApp, resetInactivityTimer } from './index';
+import { getEncryptionService } from './services/encryption-service';
+import { getPasswordService } from './services/password-service';
 
 let nativeBridge: any = null;
 
@@ -392,5 +394,76 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('language:detectAdvanced', async (_, text: string) => {
     return languageDetector.detectLanguage(text);
+  });
+
+  ipcMain.handle('security:unlock', async (_, password: string) => {
+    const passwordService = getPasswordService();
+    const valid = await passwordService.verifyPassword(password);
+    if (valid) {
+      unlockApp();
+      return { success: true };
+    }
+    return { success: false, error: 'Mot de passe incorrect' };
+  });
+
+  ipcMain.handle('security:setPassword', async (_, password: string) => {
+    try {
+      const passwordService = getPasswordService();
+      await passwordService.setPassword(password);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('security:removePassword', async (_, currentPassword: string) => {
+    const passwordService = getPasswordService();
+    const valid = await passwordService.verifyPassword(currentPassword);
+    if (valid) {
+      await passwordService.removePassword();
+      return { success: true };
+    }
+    return { success: false, error: 'Mot de passe incorrect' };
+  });
+
+  ipcMain.handle('security:changePassword', async (_, currentPassword: string, newPassword: string) => {
+    const passwordService = getPasswordService();
+    const success = await passwordService.changePassword(currentPassword, newPassword);
+    if (success) {
+      return { success: true };
+    }
+    return { success: false, error: 'Mot de passe actuel incorrect' };
+  });
+
+  ipcMain.handle('security:exportKey', async () => {
+    const encryptionService = getEncryptionService();
+    return encryptionService.exportKey();
+  });
+
+  ipcMain.handle('security:importKey', async (_, key: string) => {
+    try {
+      const encryptionService = getEncryptionService();
+      await encryptionService.importKey(key);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('security:isLocked', async () => {
+    return isLocked();
+  });
+
+  ipcMain.handle('security:hasPassword', async () => {
+    const passwordService = getPasswordService();
+    return passwordService.hasPassword();
+  });
+
+  ipcMain.handle('security:lock', async () => {
+    lockApp();
+  });
+
+  ipcMain.handle('security:resetInactivity', async () => {
+    resetInactivityTimer();
   });
 }

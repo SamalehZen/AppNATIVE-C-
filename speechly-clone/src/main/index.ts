@@ -4,6 +4,8 @@ import { initDatabase, closeDatabase, getSettings, saveSettings } from './databa
 import { registerIpcHandlers } from './ipc-handlers';
 import { TrayManager } from './tray';
 import { createRecordingTriggerService, RecordingTriggerService } from './services/recording-trigger';
+import { initializeEncryption, getEncryptionService } from './services/encryption-service';
+import { getPasswordService } from './services/password-service';
 import { RecordingSettings } from '../shared/types';
 import { DEFAULT_RECORDING_SETTINGS } from '../shared/constants';
 
@@ -13,6 +15,8 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;
 let recordingTrigger: RecordingTriggerService | null = null;
+let isAppLocked: boolean = false;
+let inactivityTimer: NodeJS.Timeout | null = null;
 
 const isHidden = process.argv.includes('--hidden');
 
@@ -145,10 +149,64 @@ export function getTrayManager(): TrayManager | null {
   return trayManager;
 }
 
-export { updateHotkey, setAutoLaunch, updateRecordingSettings };
+export function isLocked(): boolean {
+  return isAppLocked;
+}
+
+export function lockApp(): void {
+  isAppLocked = true;
+  mainWindow?.webContents.send('app:locked');
+}
+
+export function unlockApp(): void {
+  isAppLocked = false;
+  const passwordService = getPasswordService();
+  passwordService.unlock();
+  mainWindow?.webContents.send('app:unlocked');
+  resetInactivityTimer();
+}
+
+function resetInactivityTimer(): void {
+  const settings = getSettings();
+  if (!settings?.security?.autoLockEnabled) return;
+  
+  if (inactivityTimer) {
+    clearTimeout(inactivityTimer);
+  }
+  
+  const timeout = settings.security.autoLockTimeout || 5;
+  inactivityTimer = setTimeout(() => {
+    const passwordService = getPasswordService();
+    if (passwordService.isAppUnlocked()) {
+      lockApp();
+    }
+  }, timeout * 60 * 1000);
+}
+
+async function initializeSecurity(): Promise<void> {
+  try {
+    await initializeEncryption();
+    const passwordService = getPasswordService();
+    const hasPassword = await passwordService.hasPassword();
+    const settings = getSettings();
+    
+    if (hasPassword && settings?.security?.requirePasswordOnStart) {
+      isAppLocked = true;
+      mainWindow?.webContents.send('app:locked');
+    } else {
+      isAppLocked = false;
+      passwordService.unlock();
+    }
+  } catch (error) {
+    console.error('Failed to initialize security:', error);
+  }
+}
+
+export { updateHotkey, setAutoLaunch, updateRecordingSettings, resetInactivityTimer };
 
 app.whenReady().then(async () => {
   await initDatabase();
+  await initializeSecurity();
   registerIpcHandlers();
   createWindow();
   registerGlobalShortcuts();

@@ -240,6 +240,7 @@ export interface Settings {
   translation: TranslationSettings;
   recording: RecordingSettings;
   styleLearning: StyleLearningSettings;
+  security?: SecuritySettings;
 }
 
 export interface TranscriptHistory {
@@ -524,6 +525,19 @@ export interface ElectronAPI {
   toggleFavoriteLanguage: (code: string) => Promise<void>;
   setDefaultRegion: (region: LanguageRegion | null) => Promise<void>;
   detectLanguageAdvanced: (text: string) => Promise<LanguageDetectionResult>;
+  securityUnlock: (password: string) => Promise<{ success: boolean; error?: string }>;
+  securitySetPassword: (password: string) => Promise<{ success: boolean }>;
+  securityRemovePassword: (currentPassword: string) => Promise<{ success: boolean; error?: string }>;
+  securityChangePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  securityExportKey: () => Promise<string>;
+  securityImportKey: (key: string) => Promise<{ success: boolean; error?: string }>;
+  securityIsLocked: () => Promise<boolean>;
+  securityHasPassword: () => Promise<boolean>;
+  securityLock: () => Promise<void>;
+  onAppLocked: (callback: () => void) => void;
+  removeAppLockedListener: () => void;
+  onAppUnlocked: (callback: () => void) => void;
+  removeAppUnlockedListener: () => void;
 }
 
 export const SNIPPET_CATEGORIES: { value: SnippetCategory; label: string; icon: string }[] = [
@@ -584,6 +598,43 @@ export const PROFILE_VARIABLES = [
   { key: '{email}', label: 'Email', description: 'Votre adresse email' },
   { key: '{phone}', label: 'Téléphone', description: 'Numéro fixe' },
   { key: '{mobile}', label: 'Mobile', description: 'Numéro mobile' },
+];
+
+export interface SecuritySettings {
+  encryptionEnabled: boolean;
+  autoLockEnabled: boolean;
+  autoLockTimeout: number;
+  requirePasswordOnStart: boolean;
+  lastUnlockTime: number;
+}
+
+export interface EncryptedData {
+  data: string;
+  iv: string;
+  authTag: string;
+  algorithm: string;
+  version: number;
+}
+
+export interface SecureStorage<T> {
+  encrypted: boolean;
+  data: T | EncryptedData;
+}
+
+export const DEFAULT_SECURITY_SETTINGS: SecuritySettings = {
+  encryptionEnabled: true,
+  autoLockEnabled: false,
+  autoLockTimeout: 5,
+  requirePasswordOnStart: false,
+  lastUnlockTime: 0,
+};
+
+export const AUTO_LOCK_OPTIONS = [
+  { value: 1, label: '1 minute' },
+  { value: 5, label: '5 minutes' },
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 heure' },
 ];
 
 declare global {

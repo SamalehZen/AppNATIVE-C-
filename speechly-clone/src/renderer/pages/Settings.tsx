@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Mic, Globe, Keyboard, Brain, Database, 
-  Palette, Info, ExternalLink, Languages, Radio, Fingerprint
+  Palette, Info, ExternalLink, Languages, Radio, Fingerprint, Shield, Key, Lock, Download, Upload
 } from 'lucide-react';
 import { SettingsSection } from '../components/SettingsSection';
 import { HotkeyInput } from '../components/HotkeyInput';
@@ -10,14 +10,19 @@ import { ApiKeyInput } from '../components/ApiKeyInput';
 import { Toggle } from '../components/Toggle';
 import { LanguageSelectorEnhanced } from '../components/LanguageSelectorEnhanced';
 import { LanguageFavoritesManager } from '../components/LanguageFavoritesManager';
+import { PasswordDialog } from '../components/PasswordDialog';
+import { KeyBackupDialog } from '../components/KeyBackupDialog';
 import { useSettings } from '../stores/settings';
-import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey, DEFAULT_STYLE_LEARNING_SETTINGS, LanguagePreferences } from '../../shared/types';
+import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel, RecordingTriggerMode, TriggerKey, DEFAULT_STYLE_LEARNING_SETTINGS, LanguagePreferences, DEFAULT_SECURITY_SETTINGS, AUTO_LOCK_OPTIONS } from '../../shared/types';
 import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS, RECORDING_TRIGGER_MODES, TRIGGER_KEY_OPTIONS, DEFAULT_RECORDING_SETTINGS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
   const { settings, updateSettings, isLoading } = useSettings();
   const [dbSize, setDbSize] = useState('0');
+  const [hasPassword, setHasPassword] = useState(false);
+  const [passwordDialogMode, setPasswordDialogMode] = useState<'set' | 'change' | 'remove' | null>(null);
+  const [keyBackupMode, setKeyBackupMode] = useState<'export' | 'import' | null>(null);
   const [languagePrefs, setLanguagePrefs] = useState<LanguagePreferences>({
     recentLanguages: [],
     favoriteLanguages: [],
@@ -33,10 +38,20 @@ export const Settings: React.FC = () => {
     }
   }, []);
 
+  const loadPasswordStatus = useCallback(async () => {
+    try {
+      const has = await window.electronAPI.securityHasPassword();
+      setHasPassword(has);
+    } catch (e) {
+      console.error('Failed to check password status:', e);
+    }
+  }, []);
+
   useEffect(() => {
     loadStats();
     loadLanguagePrefs();
-  }, [loadLanguagePrefs]);
+    loadPasswordStatus();
+  }, [loadLanguagePrefs, loadPasswordStatus]);
 
   const loadStats = async () => {
     try {
@@ -698,6 +713,166 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </SettingsSection>
+
+      <SettingsSection
+        icon={<Shield size={20} />}
+        title="Sécurité"
+        description="Protégez vos données sensibles"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-text-primary">Chiffrement des données</h4>
+              <p className="text-xs text-text-secondary">AES-256-GCM activé</p>
+            </div>
+            <span className="text-green-500 flex items-center gap-1 text-sm">
+              <Shield size={16} /> Actif
+            </span>
+          </div>
+
+          <div className="border-t border-bg-tertiary pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-text-primary">Mot de passe au démarrage</span>
+                <p className="text-xs text-text-secondary">Demander un mot de passe pour accéder à l'app</p>
+              </div>
+              <Toggle
+                checked={settings.security?.requirePasswordOnStart || false}
+                onChange={(v) => updateSettings({
+                  security: {
+                    ...DEFAULT_SECURITY_SETTINGS,
+                    ...settings.security,
+                    requirePasswordOnStart: v,
+                  }
+                })}
+                disabled={!hasPassword}
+              />
+            </div>
+          </div>
+
+          <div className="pt-2">
+            {!hasPassword ? (
+              <button
+                onClick={() => setPasswordDialogMode('set')}
+                className="w-full py-3 bg-accent-purple text-white rounded-lg
+                          hover:bg-accent-purple/90 transition-colors
+                          flex items-center justify-center gap-2"
+              >
+                <Lock size={18} />
+                Définir un mot de passe
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPasswordDialogMode('change')}
+                  className="flex-1 py-3 bg-bg-tertiary text-text-primary rounded-lg
+                            hover:bg-bg-secondary transition-colors text-sm
+                            flex items-center justify-center gap-2"
+                >
+                  <Key size={16} />
+                  Changer
+                </button>
+                <button
+                  onClick={() => setPasswordDialogMode('remove')}
+                  className="flex-1 py-3 bg-red-600/20 text-red-500 rounded-lg
+                            hover:bg-red-600/30 transition-colors text-sm
+                            flex items-center justify-center gap-2"
+                >
+                  <Lock size={16} />
+                  Supprimer
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-bg-tertiary pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium text-text-primary">Verrouillage automatique</span>
+                <p className="text-xs text-text-secondary">Verrouiller après une période d'inactivité</p>
+              </div>
+              <Toggle
+                checked={settings.security?.autoLockEnabled || false}
+                onChange={(v) => updateSettings({
+                  security: {
+                    ...DEFAULT_SECURITY_SETTINGS,
+                    ...settings.security,
+                    autoLockEnabled: v,
+                  }
+                })}
+                disabled={!hasPassword}
+              />
+            </div>
+          </div>
+
+          {hasPassword && settings.security?.autoLockEnabled && (
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Délai de verrouillage
+              </label>
+              <select
+                value={settings.security?.autoLockTimeout || 5}
+                onChange={(e) => updateSettings({
+                  security: {
+                    ...DEFAULT_SECURITY_SETTINGS,
+                    ...settings.security,
+                    autoLockTimeout: parseInt(e.target.value),
+                  }
+                })}
+                className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                          focus:border-accent-purple focus:outline-none cursor-pointer"
+              >
+                {AUTO_LOCK_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="border-t border-bg-tertiary pt-4 mt-4">
+            <h4 className="text-sm font-medium text-text-primary mb-2">Sauvegarde de la clé de chiffrement</h4>
+            <p className="text-xs text-text-secondary mb-3">
+              Exportez votre clé pour pouvoir récupérer vos données
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setKeyBackupMode('export')}
+                className="flex-1 py-3 bg-bg-tertiary text-text-primary rounded-lg
+                          hover:bg-bg-secondary transition-colors text-sm
+                          flex items-center justify-center gap-2"
+              >
+                <Download size={16} />
+                Exporter la clé
+              </button>
+              <button
+                onClick={() => setKeyBackupMode('import')}
+                className="flex-1 py-3 bg-bg-tertiary text-text-primary rounded-lg
+                          hover:bg-bg-secondary transition-colors text-sm
+                          flex items-center justify-center gap-2"
+              >
+                <Upload size={16} />
+                Importer une clé
+              </button>
+            </div>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <PasswordDialog
+        isOpen={passwordDialogMode !== null}
+        onClose={() => setPasswordDialogMode(null)}
+        mode={passwordDialogMode || 'set'}
+        onSuccess={loadPasswordStatus}
+      />
+
+      <KeyBackupDialog
+        isOpen={keyBackupMode !== null}
+        onClose={() => setKeyBackupMode(null)}
+        mode={keyBackupMode || 'export'}
+        onSuccess={() => setKeyBackupMode(null)}
+      />
 
       <SettingsSection
         icon={<Palette size={20} />}
