@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Mic, Globe, Keyboard, Brain, Database, 
-  Palette, Info, ExternalLink, Languages, Radio
+  Palette, Info, ExternalLink, Languages, Radio, Fingerprint
 } from 'lucide-react';
 import { SettingsSection } from '../components/SettingsSection';
 import { HotkeyInput } from '../components/HotkeyInput';
@@ -12,6 +13,7 @@ import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, Formali
 import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS, RECORDING_TRIGGER_MODES, TRIGGER_KEY_OPTIONS, DEFAULT_RECORDING_SETTINGS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
+  const navigate = useNavigate();
   const { settings, updateSettings, isLoading } = useSettings();
   const [dbSize, setDbSize] = useState('0');
 
@@ -532,6 +534,93 @@ export const Settings: React.FC = () => {
               onChange={(v) => updateSettings({ contextAwareCleanup: v })}
             />
           </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<Fingerprint size={20} />}
+        title="Apprentissage du style"
+        description="L'IA apprend votre façon d'écrire"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-medium text-text-primary">Activer l'apprentissage</span>
+              <p className="text-xs text-text-secondary">L'IA s'adapte à votre style personnel</p>
+            </div>
+            <Toggle
+              checked={settings.styleLearning?.enabled ?? true}
+              onChange={(v) => updateSettings({
+                styleLearning: {
+                  ...settings.styleLearning,
+                  enabled: v,
+                  autoLearn: settings.styleLearning?.autoLearn ?? true,
+                  minSamplesBeforeUse: settings.styleLearning?.minSamplesBeforeUse ?? 20,
+                  contextSpecificLearning: settings.styleLearning?.contextSpecificLearning ?? false,
+                }
+              })}
+            />
+          </div>
+
+          {settings.styleLearning?.enabled && (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-text-primary">Apprentissage automatique</span>
+                  <p className="text-xs text-text-secondary">Apprendre de chaque dictée</p>
+                </div>
+                <Toggle
+                  checked={settings.styleLearning?.autoLearn ?? true}
+                  onChange={(v) => updateSettings({
+                    styleLearning: {
+                      ...settings.styleLearning,
+                      enabled: settings.styleLearning?.enabled ?? true,
+                      autoLearn: v,
+                      minSamplesBeforeUse: settings.styleLearning?.minSamplesBeforeUse ?? 20,
+                      contextSpecificLearning: settings.styleLearning?.contextSpecificLearning ?? false,
+                    }
+                  })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  Échantillons minimum: {settings.styleLearning?.minSamplesBeforeUse ?? 20}
+                </label>
+                <input
+                  type="range"
+                  min={10}
+                  max={50}
+                  step={5}
+                  value={settings.styleLearning?.minSamplesBeforeUse ?? 20}
+                  onChange={(e) => updateSettings({
+                    styleLearning: {
+                      ...settings.styleLearning,
+                      enabled: settings.styleLearning?.enabled ?? true,
+                      autoLearn: settings.styleLearning?.autoLearn ?? true,
+                      minSamplesBeforeUse: parseInt(e.target.value),
+                      contextSpecificLearning: settings.styleLearning?.contextSpecificLearning ?? false,
+                    }
+                  })}
+                  className="w-full h-2 bg-bg-tertiary rounded-lg appearance-none cursor-pointer accent-accent-purple"
+                />
+                <div className="flex justify-between text-xs text-text-secondary mt-1">
+                  <span>10 (rapide)</span>
+                  <span>50 (précis)</span>
+                </div>
+                <p className="text-xs text-text-secondary mt-2">
+                  Nombre d'échantillons nécessaires avant d'appliquer le style
+                </p>
+              </div>
+
+              <button
+                onClick={() => navigate('/style-profile')}
+                className="w-full py-2 bg-bg-tertiary hover:bg-bg-secondary text-text-primary rounded-lg transition-colors text-sm"
+              >
+                Gérer mon profil de style
+              </button>
+            </>
+          )}
         </div>
       </SettingsSection>
 

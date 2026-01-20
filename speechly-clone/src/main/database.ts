@@ -1,8 +1,8 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel } from '../shared/types';
-import { DEFAULT_TRANSLATION_SETTINGS } from '../shared/constants';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode, DictationEvent, DailyStats, AnalyticsSummary, AnalyticsPeriod, TranslationSettings, FormalityLevel, StyleProfile, StyleSampleText, StyleLearningSettings } from '../shared/types';
+import { DEFAULT_TRANSLATION_SETTINGS, DEFAULT_STYLE_LEARNING_SETTINGS, DEFAULT_STYLE_PROFILE } from '../shared/constants';
 import { CONTEXT_NAMES } from '../shared/constants';
 import { analyticsService } from './services/analytics-service';
 
@@ -13,6 +13,7 @@ interface DatabaseData {
   snippets: Snippet[];
   profile: UserProfile | null;
   analyticsEvents: DictationEvent[];
+  styleProfile: StyleProfile | null;
   nextHistoryId: number;
   nextDictionaryId: number;
 }
@@ -24,6 +25,7 @@ let data: DatabaseData = {
   snippets: [],
   profile: null,
   analyticsEvents: [],
+  styleProfile: null,
   nextHistoryId: 1,
   nextDictionaryId: 1,
 };
@@ -53,6 +55,7 @@ function loadData(): void {
         snippets: loaded.snippets || [],
         profile: loaded.profile || null,
         analyticsEvents: loaded.analyticsEvents || [],
+        styleProfile: loaded.styleProfile || null,
         nextHistoryId: loaded.nextHistoryId || 1,
         nextDictionaryId: loaded.nextDictionaryId || 1,
       };
@@ -80,6 +83,16 @@ const DEFAULT_SETTINGS: Omit<Settings, 'appVersion'> = {
   minimizeToTray: true,
   launchAtStartup: false,
   translation: DEFAULT_TRANSLATION_SETTINGS,
+  styleLearning: DEFAULT_STYLE_LEARNING_SETTINGS,
+  recording: {
+    triggerMode: 'double-tap',
+    doubleTapKey: 'ctrl',
+    doubleTapThreshold: 300,
+    holdKey: 'ctrl',
+    toggleHotkey: 'CommandOrControl+Shift+Space',
+    autoStopAfterSilence: false,
+    silenceThreshold: 3,
+  },
 };
 
 export async function initDatabase(): Promise<void> {
@@ -155,6 +168,7 @@ export function getSettings(): Settings | null {
     theme: isValidTheme(data.settings.theme) ? data.settings.theme : 'dark',
     appVersion: app.getVersion(),
     translation: data.settings.translation || DEFAULT_TRANSLATION_SETTINGS,
+    styleLearning: data.settings.styleLearning || DEFAULT_STYLE_LEARNING_SETTINGS,
   };
 }
 
@@ -525,4 +539,72 @@ export function getTopSnippets(limit: number): Array<{ snippet: string; count: n
 export function clearAnalyticsData(): void {
   data.analyticsEvents = [];
   saveData();
+}
+
+export function getStyleProfile(): StyleProfile | null {
+  return data.styleProfile;
+}
+
+export function saveStyleProfile(profile: StyleProfile): void {
+  data.styleProfile = {
+    ...profile,
+    updatedAt: Date.now(),
+  };
+  saveData();
+}
+
+export function addStyleSample(text: string, context: string): void {
+  if (!data.styleProfile) {
+    data.styleProfile = { ...DEFAULT_STYLE_PROFILE, createdAt: Date.now() };
+  }
+
+  const sample: StyleSampleText = {
+    context,
+    text: text.slice(0, 500),
+    timestamp: Date.now(),
+  };
+
+  data.styleProfile.sampleTexts.unshift(sample);
+  if (data.styleProfile.sampleTexts.length > 100) {
+    data.styleProfile.sampleTexts = data.styleProfile.sampleTexts.slice(0, 100);
+  }
+
+  data.styleProfile.trainingStats.totalSamples++;
+  data.styleProfile.trainingStats.lastTrainingDate = Date.now();
+  data.styleProfile.updatedAt = Date.now();
+
+  saveData();
+}
+
+export function getStyleSamples(limit: number): StyleSampleText[] {
+  if (!data.styleProfile) return [];
+  return data.styleProfile.sampleTexts.slice(0, limit);
+}
+
+export function clearStyleProfile(): void {
+  data.styleProfile = { ...DEFAULT_STYLE_PROFILE, createdAt: Date.now(), updatedAt: Date.now() };
+  saveData();
+}
+
+export function exportStyleProfile(): string {
+  if (!data.styleProfile) return JSON.stringify(DEFAULT_STYLE_PROFILE);
+  return JSON.stringify(data.styleProfile, null, 2);
+}
+
+export function importStyleProfile(jsonData: string): void {
+  try {
+    const profile = JSON.parse(jsonData) as StyleProfile;
+    if (profile.id && profile.metrics && profile.patterns && profile.vocabulary) {
+      data.styleProfile = {
+        ...profile,
+        updatedAt: Date.now(),
+      };
+      saveData();
+    } else {
+      throw new Error('Format de profil invalide');
+    }
+  } catch (e) {
+    console.error('Failed to import style profile:', e);
+    throw e;
+  }
 }

@@ -1,9 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { CleanupOptions, CleanupResult, DictationMode, UserProfile } from '../shared/types';
-import { getSettings, getUserProfile } from './database';
+import { CleanupOptions, CleanupResult, DictationMode, UserProfile, StyleProfile } from '../shared/types';
+import { getSettings, getUserProfile, getStyleProfile } from './database';
 import { DetectedContext, ContextType } from './services/context-detector';
 import { getPromptForContext } from './services/context-prompts';
 import { getModePrompt } from './services/mode-prompts';
+import { getStyleLearner } from './services/style-learner';
 import contextDictionaries from '../data/context-dictionaries.json';
 
 let genAI: GoogleGenerativeAI | null = null;
@@ -95,7 +96,8 @@ Réponds UNIQUEMENT avec le texte nettoyé, sans guillemets, sans explication, s
 function buildContextAwarePrompt(
   text: string,
   context: DetectedContext,
-  language?: string
+  language?: string,
+  includeStyle: boolean = true
 ): string {
   let prompt = getPromptForContext(context);
 
@@ -104,6 +106,20 @@ function buildContextAwarePrompt(
       'LANGUE:',
       `LANGUE DÉTECTÉE: ${language}\nLANGUE:`
     );
+  }
+
+  if (includeStyle) {
+    const settings = getSettings();
+    if (settings?.styleLearning?.enabled) {
+      const styleProfile = getStyleProfile();
+      if (styleProfile && styleProfile.trainingStats.totalSamples >= (settings.styleLearning.minSamplesBeforeUse || 20)) {
+        const styleLearner = getStyleLearner(styleProfile);
+        const stylePrompt = styleLearner.generateStylePrompt();
+        if (stylePrompt) {
+          prompt = prompt.replace('{transcript}', `{transcript}\n\n${stylePrompt}`);
+        }
+      }
+    }
   }
 
   prompt = prompt.replace('{transcript}', text);
@@ -312,6 +328,17 @@ export async function cleanupWithMode(
         'LANGUE:',
         `LANGUE DÉTECTÉE: ${language}\nLANGUE:`
       );
+    }
+
+    if (settings?.styleLearning?.enabled && mode !== 'raw') {
+      const styleProfile = getStyleProfile();
+      if (styleProfile && styleProfile.trainingStats.totalSamples >= (settings.styleLearning.minSamplesBeforeUse || 20)) {
+        const styleLearner = getStyleLearner(styleProfile);
+        const stylePrompt = styleLearner.generateStylePrompt();
+        if (stylePrompt) {
+          prompt = prompt.replace('{transcript}', `{transcript}\n\n${stylePrompt}`);
+        }
+      }
     }
 
     prompt = prompt.replace('{transcript}', text);

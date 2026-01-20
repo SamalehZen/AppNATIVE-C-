@@ -261,3 +261,72 @@ export const TRIGGER_KEY_OPTIONS: { value: TriggerKey; label: string }[] = [
   { value: 'shift', label: 'Shift' },
   { value: 'capslock', label: 'CapsLock' },
 ];
+
+import type { StyleLearningSettings, StyleProfile } from './types';
+
+export const DEFAULT_STYLE_LEARNING_SETTINGS: StyleLearningSettings = {
+  enabled: true,
+  autoLearn: true,
+  minSamplesBeforeUse: 20,
+  contextSpecificLearning: false,
+};
+
+export const DEFAULT_STYLE_PROFILE: StyleProfile = {
+  id: 'default',
+  name: 'Mon Style',
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  metrics: {
+    averageSentenceLength: 15,
+    vocabularyRichness: 0.5,
+    formalityScore: 0.5,
+    punctuationStyle: {
+      semicolonUsage: 0,
+      exclamationUsage: 0,
+      ellipsisUsage: 0,
+    },
+  },
+  patterns: {
+    greetings: [],
+    closings: [],
+    transitions: [],
+    fillers: [],
+  },
+  vocabulary: {
+    frequentWords: [],
+    technicalTerms: [],
+    avoidedWords: [],
+  },
+  sampleTexts: [],
+  trainingStats: {
+    totalSamples: 0,
+    lastTrainingDate: 0,
+    confidenceScore: 0,
+  },
+};
+
+export const FRENCH_STOP_WORDS = new Set([
+  'le', 'la', 'les', 'de', 'du', 'des', 'un', 'une', 'et', 'est', 'en', 'que', 'qui',
+  'dans', 'ce', 'il', 'ne', 'sur', 'se', 'pas', 'plus', 'par', 'je', 'avec', 'tout',
+  'faire', 'son', 'mais', 'nous', 'comme', 'ou', 'si', 'leur', 'cette', 'bien', 'où',
+  'sans', 'aussi', 'été', 'très', 'pour', 'elle', 'lui', 'sont', 'ont', 'aux', 'ces',
+  'ai', 'mes', 'tes', 'ses', 'nos', 'vos', 'leurs', 'ton', 'ta', 'mon', 'ma',
+  'tu', 'te', 'toi', 'vous', 'ils', 'elles', 'moi',
+]);
+
+export const GREETING_PATTERNS = [
+  'salut', 'bonjour', 'hello', 'hey', 'coucou', 'hi', 'bonsoir', 'cher', 'chère',
+  'chers', 'chères', 'madame', 'monsieur',
+];
+
+export const CLOSING_PATTERNS = [
+  'cordialement', 'sincèrement', 'respectueusement', 'amicalement', 'bien à vous',
+  'à bientôt', 'à plus', 'a+', 'best', 'regards', 'merci', 'bisous', 'bises',
+  'amitiés', 'salutations',
+];
+
+export const TRANSITION_PATTERNS = [
+  'du coup', 'donc', 'par ailleurs', 'en effet', 'd\'ailleurs', 'sinon', 'en fait',
+  'effectivement', 'clairement', 'cela dit', 'par contre', 'cependant', 'toutefois',
+  'néanmoins', 'en revanche', 'autrement dit', 'bref', 'en gros',
+];

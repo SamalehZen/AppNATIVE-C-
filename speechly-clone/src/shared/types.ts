@@ -1,5 +1,79 @@
 export type DictationMode = 'auto' | 'raw' | 'email' | 'prompt' | 'todo' | 'notes';
 
+export interface StylePunctuationMetrics {
+  semicolonUsage: number;
+  exclamationUsage: number;
+  ellipsisUsage: number;
+}
+
+export interface StyleMetrics {
+  averageSentenceLength: number;
+  vocabularyRichness: number;
+  formalityScore: number;
+  punctuationStyle: StylePunctuationMetrics;
+}
+
+export interface StylePatterns {
+  greetings: string[];
+  closings: string[];
+  transitions: string[];
+  fillers: string[];
+}
+
+export interface WordFrequency {
+  word: string;
+  count: number;
+}
+
+export interface StyleVocabulary {
+  frequentWords: WordFrequency[];
+  technicalTerms: string[];
+  avoidedWords: string[];
+}
+
+export interface StyleSampleText {
+  context: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface StyleTrainingStats {
+  totalSamples: number;
+  lastTrainingDate: number;
+  confidenceScore: number;
+}
+
+export interface StyleProfile {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  metrics: StyleMetrics;
+  patterns: StylePatterns;
+  vocabulary: StyleVocabulary;
+  sampleTexts: StyleSampleText[];
+  trainingStats: StyleTrainingStats;
+}
+
+export interface StyleLearningSettings {
+  enabled: boolean;
+  autoLearn: boolean;
+  minSamplesBeforeUse: number;
+  contextSpecificLearning: boolean;
+}
+
+export interface TextMetrics {
+  sentenceCount: number;
+  wordCount: number;
+  averageSentenceLength: number;
+  uniqueWords: Set<string>;
+  punctuationUsage: StylePunctuationMetrics;
+  formalityIndicators: {
+    formal: number;
+    informal: number;
+  };
+}
+
 export type RecordingTriggerMode = 'double-tap' | 'hold' | 'toggle';
 
 export type TriggerKey = 'ctrl' | 'alt' | 'shift' | 'capslock' | 'fn';
@@ -127,6 +201,7 @@ export interface Settings {
   appVersion: string;
   translation: TranslationSettings;
   recording: RecordingSettings;
+  styleLearning: StyleLearningSettings;
 }
 
 export interface TranscriptHistory {
@@ -305,6 +380,14 @@ export interface ElectronAPI {
   getSettings: () => Promise<Settings | null>;
   saveSettings: (settings: Partial<Settings>) => Promise<void>;
   saveTranscript: (data: { original: string; cleaned: string; language: string; context: string }) => Promise<void>;
+  getStyleProfile: () => Promise<StyleProfile | null>;
+  saveStyleProfile: (profile: StyleProfile) => Promise<void>;
+  addStyleSample: (text: string, context: string) => Promise<void>;
+  getStyleSamples: (limit: number) => Promise<StyleSampleText[]>;
+  clearStyleProfile: () => Promise<void>;
+  learnFromCorrection: (original: string, corrected: string) => Promise<void>;
+  exportStyleProfile: () => Promise<string>;
+  importStyleProfile: (data: string) => Promise<void>;
   getHistory: (limit: number, offset: number, context?: string) => Promise<TranscriptHistory[]>;
   deleteHistoryItem: (id: number) => Promise<void>;
   clearHistory: () => Promise<void>;
