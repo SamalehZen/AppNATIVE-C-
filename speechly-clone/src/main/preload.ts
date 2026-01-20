@@ -12,6 +12,7 @@ import {
   SnippetCategory,
   SnippetProcessResult,
   UserProfile,
+  DictationMode,
 } from '../shared/types';
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -110,6 +111,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     language?: string
   ): Promise<ContextCleanupResult> =>
     ipcRenderer.invoke('gemini:cleanupAuto', text, language),
+
+  cleanupWithMode: (
+    text: string,
+    mode: DictationMode,
+    language?: string
+  ): Promise<ContextCleanupResult> =>
+    ipcRenderer.invoke('gemini:cleanupWithMode', text, mode, language),
 
   onToggleRecording: (callback: () => void): void => {
     ipcRenderer.on('toggle-recording', callback);

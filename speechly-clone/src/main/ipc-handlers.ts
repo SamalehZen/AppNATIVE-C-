@@ -23,8 +23,8 @@ import {
   saveUserProfile,
   updateUserProfile
 } from './database';
-import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto } from './gemini';
-import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile } from '../shared/types';
+import { cleanupTranscript, resetGenAI, cleanupWithContext, cleanupTranscriptAuto, cleanupWithMode } from './gemini';
+import { CleanupOptions, Settings, DetectedContext, ActiveWindowInfo, Snippet, SnippetCategory, UserProfile, DictationMode } from '../shared/types';
 import { getContextDetector } from './services/context-detector';
 import { updateHotkey, setAutoLaunch, getTrayManager } from './index';
 
@@ -216,6 +216,22 @@ export function registerIpcHandlers(): void {
         console.error('Auto cleanup error:', error);
         getTrayManager()?.setRecordingState(false);
         return cleanupTranscriptAuto(text, null, language);
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'gemini:cleanupWithMode',
+    async (_, text: string, mode: DictationMode, language?: string) => {
+      getTrayManager()?.setProcessingState();
+      try {
+        const result = await cleanupWithMode(text, mode, language);
+        getTrayManager()?.setRecordingState(false);
+        return result;
+      } catch (error) {
+        console.error('Mode cleanup error:', error);
+        getTrayManager()?.setRecordingState(false);
+        throw error;
       }
     }
   );

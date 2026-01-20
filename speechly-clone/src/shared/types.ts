@@ -1,3 +1,16 @@
+export type DictationMode = 'auto' | 'raw' | 'email' | 'prompt' | 'todo' | 'notes';
+
+export type ModeOutputFormat = 'plain' | 'markdown' | 'structured';
+
+export interface ModeConfig {
+  id: DictationMode;
+  name: string;
+  icon: string;
+  description: string;
+  outputFormat: ModeOutputFormat;
+  preserveExactWords: boolean;
+}
+
 export interface UserProfileAddress {
   street: string;
   city: string;
@@ -65,6 +78,8 @@ export interface Settings {
   hotkeyInsert: string;
   autoCleanup: boolean;
   contextAwareCleanup: boolean;
+  defaultDictationMode: DictationMode;
+  alwaysUseAutoMode: boolean;
   saveHistory: boolean;
   historyRetentionDays: number;
   theme: 'dark' | 'light' | 'system';
@@ -227,6 +242,7 @@ export interface ElectronAPI {
   detectContext: (windowInfo: ActiveWindowInfo) => Promise<DetectedContext>;
   cleanupWithContext: (text: string, context: DetectedContext, language?: string) => Promise<ContextCleanupResult>;
   cleanupTranscriptAuto: (text: string, language?: string) => Promise<ContextCleanupResult>;
+  cleanupWithMode: (text: string, mode: DictationMode, language?: string) => Promise<ContextCleanupResult>;
   updateHotkey: (type: 'record' | 'insert', hotkey: string) => Promise<void>;
   setAutoLaunch: (enabled: boolean) => Promise<void>;
   onToggleRecording: (callback: () => void) => void;
