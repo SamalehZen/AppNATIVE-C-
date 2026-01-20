@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Calendar, Copy, Trash2, ChevronDown, Filter } from 'lucide-react';
+import { Search, Calendar, Copy, Trash2, ChevronDown, Filter, Languages } from 'lucide-react';
 import { TranscriptHistory } from '../../shared/types';
 import { formatDistanceToNow, format, isToday, isYesterday, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { CONTEXT_NAMES } from '../../shared/constants';
+import { CONTEXT_NAMES, TRANSLATION_LANGUAGES } from '../../shared/constants';
 
 export const History: React.FC = () => {
   const [history, setHistory] = useState<TranscriptHistory[]>([]);
@@ -33,7 +33,8 @@ export const History: React.FC = () => {
 
   const filteredHistory = history.filter((item) =>
     item.original.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.cleaned.toLowerCase().includes(searchQuery.toLowerCase())
+    item.cleaned.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.translatedText && item.translatedText.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const groupByDate = (items: TranscriptHistory[]) => {
@@ -63,7 +64,7 @@ export const History: React.FC = () => {
   const groupedHistory = groupByDate(filteredHistory);
 
   const handleCopy = async (item: TranscriptHistory) => {
-    await window.electronAPI.copyToClipboard(item.cleaned);
+    await window.electronAPI.copyToClipboard(item.translatedText || item.cleaned);
     setCopiedId(item.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -189,14 +190,35 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ item, onCopy, onDelete, isCop
           </div>
 
           <p className={`text-sm text-text-primary ${isExpanded ? '' : 'line-clamp-2'}`}>
-            {item.cleaned}
+            {item.translatedText || item.cleaned}
           </p>
 
-          {isExpanded && item.original !== item.cleaned && (
-            <div className="mt-3 pt-3 border-t border-bg-tertiary">
-              <p className="text-xs text-text-secondary mb-1">Original:</p>
-              <p className="text-sm text-text-secondary">{item.original}</p>
+          {item.translatedText && (
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-accent-purple">
+              <Languages size={12} />
+              <span>
+                {TRANSLATION_LANGUAGES.find(l => l.code === item.sourceLanguage)?.flag || '🌐'}
+                {' '}→{' '}
+                {TRANSLATION_LANGUAGES.find(l => l.code === item.targetLanguage)?.flag || '🌐'}
+              </span>
             </div>
+          )}
+
+          {isExpanded && (
+            <>
+              {item.translatedText && (
+                <div className="mt-3 pt-3 border-t border-bg-tertiary">
+                  <p className="text-xs text-text-secondary mb-1">Texte nettoyé:</p>
+                  <p className="text-sm text-text-secondary">{item.cleaned}</p>
+                </div>
+              )}
+              {item.original !== item.cleaned && (
+                <div className="mt-3 pt-3 border-t border-bg-tertiary">
+                  <p className="text-xs text-text-secondary mb-1">Original:</p>
+                  <p className="text-sm text-text-secondary">{item.original}</p>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -208,7 +230,7 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ item, onCopy, onDelete, isCop
                 ? 'bg-accent-green text-white' 
                 : 'hover:bg-bg-tertiary text-text-secondary hover:text-text-primary'
             }`}
-            title="Copier"
+            title={item.translatedText ? 'Copier la traduction' : 'Copier'}
           >
             <Copy size={16} />
           </button>

@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Mic, Globe, Keyboard, Brain, Database, 
-  Palette, Info, ExternalLink
+  Palette, Info, ExternalLink, Languages
 } from 'lucide-react';
 import { SettingsSection } from '../components/SettingsSection';
 import { HotkeyInput } from '../components/HotkeyInput';
 import { ApiKeyInput } from '../components/ApiKeyInput';
 import { Toggle } from '../components/Toggle';
 import { useSettings } from '../stores/settings';
-import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode } from '../../shared/types';
-import { DICTATION_MODES } from '../../shared/constants';
-import { HISTORY_RETENTION_OPTIONS, THEME_OPTIONS } from '../../shared/constants';
+import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode, FormalityLevel } from '../../shared/types';
+import { DICTATION_MODES, HISTORY_RETENTION_OPTIONS, THEME_OPTIONS, TRANSLATION_LANGUAGES, FORMALITY_LEVELS, DEFAULT_TRANSLATION_SETTINGS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
   const { settings, updateSettings, isLoading } = useSettings();
@@ -115,6 +114,149 @@ export const Settings: React.FC = () => {
               onChange={(v) => updateSettings({ alwaysUseAutoMode: v })}
             />
           </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={<Languages size={20} />}
+        title="Traduction automatique"
+        description="Dictez dans une langue, écrivez dans une autre"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-medium text-text-primary">Activer la traduction</span>
+              <p className="text-xs text-text-secondary">Traduit automatiquement le texte dicté</p>
+            </div>
+            <Toggle
+              checked={settings.translation?.enabled || false}
+              onChange={(v) => updateSettings({
+                translation: {
+                  ...settings.translation,
+                  enabled: v,
+                  sourceLanguage: settings.translation?.sourceLanguage || 'fr-FR',
+                  targetLanguage: settings.translation?.targetLanguage || 'en-US',
+                  preserveFormatting: settings.translation?.preserveFormatting ?? true,
+                  formalityLevel: settings.translation?.formalityLevel || 'neutral',
+                }
+              })}
+            />
+          </div>
+
+          {settings.translation?.enabled && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  Langue de dictée (source)
+                </label>
+                <select
+                  value={settings.translation?.sourceLanguage || 'fr-FR'}
+                  onChange={(e) => updateSettings({
+                    translation: {
+                      ...settings.translation,
+                      enabled: settings.translation?.enabled || false,
+                      sourceLanguage: e.target.value,
+                      targetLanguage: settings.translation?.targetLanguage || 'en-US',
+                      preserveFormatting: settings.translation?.preserveFormatting ?? true,
+                      formalityLevel: settings.translation?.formalityLevel || 'neutral',
+                    }
+                  })}
+                  className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                            focus:border-accent-purple focus:outline-none cursor-pointer"
+                >
+                  {TRANSLATION_LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-text-secondary mt-1">La langue dans laquelle vous parlez</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  Langue d'écriture (cible)
+                </label>
+                <select
+                  value={settings.translation?.targetLanguage || 'en-US'}
+                  onChange={(e) => updateSettings({
+                    translation: {
+                      ...settings.translation,
+                      enabled: settings.translation?.enabled || false,
+                      sourceLanguage: settings.translation?.sourceLanguage || 'fr-FR',
+                      targetLanguage: e.target.value,
+                      preserveFormatting: settings.translation?.preserveFormatting ?? true,
+                      formalityLevel: settings.translation?.formalityLevel || 'neutral',
+                    }
+                  })}
+                  className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                            focus:border-accent-purple focus:outline-none cursor-pointer"
+                >
+                  {TRANSLATION_LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-text-secondary mt-1">La langue dans laquelle le texte sera traduit</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-2">
+                  Niveau de formalité
+                </label>
+                <select
+                  value={settings.translation?.formalityLevel || 'neutral'}
+                  onChange={(e) => updateSettings({
+                    translation: {
+                      ...settings.translation,
+                      enabled: settings.translation?.enabled || false,
+                      sourceLanguage: settings.translation?.sourceLanguage || 'fr-FR',
+                      targetLanguage: settings.translation?.targetLanguage || 'en-US',
+                      preserveFormatting: settings.translation?.preserveFormatting ?? true,
+                      formalityLevel: e.target.value as FormalityLevel,
+                    }
+                  })}
+                  className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                            focus:border-accent-purple focus:outline-none cursor-pointer"
+                >
+                  {FORMALITY_LEVELS.map((level) => (
+                    <option key={level.id} value={level.id}>
+                      {level.name} - {level.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-text-primary">Préserver le formatage</span>
+                  <p className="text-xs text-text-secondary">Garde la structure du texte (paragraphes, listes)</p>
+                </div>
+                <Toggle
+                  checked={settings.translation?.preserveFormatting ?? true}
+                  onChange={(v) => updateSettings({
+                    translation: {
+                      ...settings.translation,
+                      enabled: settings.translation?.enabled || false,
+                      sourceLanguage: settings.translation?.sourceLanguage || 'fr-FR',
+                      targetLanguage: settings.translation?.targetLanguage || 'en-US',
+                      preserveFormatting: v,
+                      formalityLevel: settings.translation?.formalityLevel || 'neutral',
+                    }
+                  })}
+                />
+              </div>
+
+              <div className="p-3 bg-bg-tertiary rounded-lg">
+                <p className="text-xs text-text-secondary">
+                  <strong>Exemple:</strong> Dictez en {TRANSLATION_LANGUAGES.find(l => l.code === settings.translation?.sourceLanguage)?.name || 'Français'} {TRANSLATION_LANGUAGES.find(l => l.code === settings.translation?.sourceLanguage)?.flag}
+                  {' '}→{' '}
+                  Le texte apparaîtra en {TRANSLATION_LANGUAGES.find(l => l.code === settings.translation?.targetLanguage)?.name || 'Anglais'} {TRANSLATION_LANGUAGES.find(l => l.code === settings.translation?.targetLanguage)?.flag}
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </SettingsSection>
 

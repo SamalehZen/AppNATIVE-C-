@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { Settings, DictationMode } from '../../shared/types';
+import { Settings, DictationMode, TranslationSettings } from '../../shared/types';
+import { DEFAULT_TRANSLATION_SETTINGS } from '../../shared/constants';
 
 interface SettingsStore {
   settings: Settings;
@@ -27,6 +28,7 @@ const defaultSettings: Settings = {
   minimizeToTray: true,
   launchAtStartup: false,
   appVersion: '1.0.0',
+  translation: DEFAULT_TRANSLATION_SETTINGS,
 };
 
 export const useSettings = create<SettingsStore>((set, get) => ({
