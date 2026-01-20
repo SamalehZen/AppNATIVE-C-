@@ -1,0 +1,158 @@
+name: Release Electron App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.3.1)'
+        required: true
+        default: '1.3.1'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          release_name: Speechly Clone v${{ steps.get_version.outputs.version }}
+          body: |
+            ## Speechly Clone v${{ steps.get_version.outputs.version }}
+            
+            ### Downloads
+            - **Windows**: `Speechly.Clone-${{ steps.get_version.outputs.version }}.Setup.exe`
+            - **macOS**: `Speechly.Clone-${{ steps.get_version.outputs.version }}.dmg`
+            - **Linux DEB**: `speechly-clone_${{ steps.get_version.outputs.version }}_amd64.deb`
+            - **Linux RPM**: `speechly-clone-${{ steps.get_version.outputs.version }}.x86_64.rpm`
+            
+            ### Installation
+            Download the appropriate file for your system and run the installer.
+          draft: false
+          prerelease: false
+
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: speechly-clone/package-lock.json
+
+      - name: Install dependencies
+        working-directory: speechly-clone
+        run: npm ci
+
+      - name: Build Windows
+        working-directory: speechly-clone
+        run: npm run make:win
+
+      - name: Upload Windows Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: speechly-clone/out/make/squirrel.windows/x64/Speechly Clone-${{ needs.create-release.outputs.version }} Setup.exe
+          asset_name: Speechly.Clone-${{ needs.create-release.outputs.version }}.Setup.exe
+          asset_content_type: application/octet-stream
+
+  build-mac:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: speechly-clone/package-lock.json
+
+      - name: Install dependencies
+        working-directory: speechly-clone
+        run: npm ci
+
+      - name: Build macOS
+        working-directory: speechly-clone
+        run: npm run make:mac
+
+      - name: Upload macOS DMG
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: speechly-clone/out/make/Speechly Clone-${{ needs.create-release.outputs.version }}-arm64.dmg
+          asset_name: Speechly.Clone-${{ needs.create-release.outputs.version }}.dmg
+          asset_content_type: application/octet-stream
+
+  build-linux:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: speechly-clone/package-lock.json
+
+      - name: Install dependencies
+        working-directory: speechly-clone
+        run: npm ci
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev rpm
+
+      - name: Build Linux
+        working-directory: speechly-clone
+        run: npm run make:linux
+
+      - name: Upload Linux DEB
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: speechly-clone/out/make/deb/x64/speechly-clone_${{ needs.create-release.outputs.version }}_amd64.deb
+          asset_name: speechly-clone_${{ needs.create-release.outputs.version }}_amd64.deb
+          asset_content_type: application/octet-stream
+
+      - name: Upload Linux RPM
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: speechly-clone/out/make/rpm/x64/speechly-clone-${{ needs.create-release.outputs.version }}-1.x86_64.rpm
+          asset_name: speechly-clone-${{ needs.create-release.outputs.version }}.x86_64.rpm
+          asset_content_type: application/octet-stream
