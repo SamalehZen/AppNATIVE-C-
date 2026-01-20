@@ -417,7 +417,7 @@ export type AnalyticsPeriod = 'week' | 'month' | 'year' | 'all';
 export interface ElectronAPI {
   getSettings: () => Promise<Settings | null>;
   saveSettings: (settings: Partial<Settings>) => Promise<void>;
-  saveTranscript: (data: { original: string; cleaned: string; language: string; context: string }) => Promise<void>;
+  saveTranscript: (data: { original: string; cleaned: string; language: string; context: string; translatedText?: string; sourceLanguage?: string; targetLanguage?: string }) => Promise<void>;
   getHistory: (limit: number, offset: number, context?: string) => Promise<TranscriptHistory[]>;
   deleteHistoryItem: (id: number) => Promise<void>;
   clearHistory: () => Promise<void>;
