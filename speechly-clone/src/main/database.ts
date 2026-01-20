@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE } from '../shared/types';
+import { Settings, TranscriptHistory, CustomDictionary, GeminiModel, Snippet, SnippetCategory, SnippetProcessResult, DEFAULT_SNIPPETS, UserProfile, DEFAULT_USER_PROFILE, DictationMode } from '../shared/types';
 import { CONTEXT_NAMES } from '../shared/constants';
 
 interface DatabaseData {
@@ -67,6 +67,8 @@ const DEFAULT_SETTINGS: Omit<Settings, 'appVersion'> = {
   hotkeyInsert: 'CommandOrControl+Shift+V',
   autoCleanup: true,
   contextAwareCleanup: true,
+  defaultDictationMode: 'auto' as DictationMode,
+  alwaysUseAutoMode: false,
   saveHistory: true,
   historyRetentionDays: 30,
   theme: 'dark',

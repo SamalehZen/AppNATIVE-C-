@@ -54,3 +54,65 @@ export const NAV_ITEMS = [
   { path: '/profile', icon: 'User', label: 'Profil' },
   { path: '/settings', icon: 'Settings', label: 'Paramètres' },
 ] as const;
+
+import type { ModeConfig, DictationMode } from './types';
+
+export const DICTATION_MODES: ModeConfig[] = [
+  {
+    id: 'auto',
+    name: 'Auto',
+    icon: 'Wand2',
+    description: 'Détection automatique du contexte',
+    outputFormat: 'plain',
+    preserveExactWords: false,
+  },
+  {
+    id: 'raw',
+    name: 'Voice-to-Text',
+    icon: 'Mic',
+    description: 'Transcription brute sans modification',
+    outputFormat: 'plain',
+    preserveExactWords: true,
+  },
+  {
+    id: 'email',
+    name: 'Email',
+    icon: 'Mail',
+    description: 'Format email professionnel',
+    outputFormat: 'plain',
+    preserveExactWords: false,
+  },
+  {
+    id: 'prompt',
+    name: 'Prompt',
+    icon: 'Terminal',
+    description: 'Instructions IA structurées',
+    outputFormat: 'plain',
+    preserveExactWords: true,
+  },
+  {
+    id: 'todo',
+    name: 'Todo',
+    icon: 'CheckSquare',
+    description: 'Listes de tâches',
+    outputFormat: 'structured',
+    preserveExactWords: false,
+  },
+  {
+    id: 'notes',
+    name: 'Notes',
+    icon: 'FileText',
+    description: 'Notes structurées',
+    outputFormat: 'markdown',
+    preserveExactWords: false,
+  },
+];
+
+export const MODE_KEYBOARD_SHORTCUTS: Record<DictationMode, string> = {
+  auto: 'Ctrl+1',
+  raw: 'Ctrl+2',
+  email: 'Ctrl+3',
+  prompt: 'Ctrl+4',
+  todo: 'Ctrl+5',
+  notes: 'Ctrl+6',
+};

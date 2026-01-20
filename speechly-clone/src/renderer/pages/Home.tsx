@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DetectedContext, SnippetReplacement } from '../../shared/types';
+import { DetectedContext, SnippetReplacement, DictationMode } from '../../shared/types';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useGeminiCleanup } from '../hooks/useGeminiCleanup';
 import { useSettings } from '../stores/settings';
@@ -9,6 +9,7 @@ import { CleanupPreview } from '../components/CleanupPreview';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { StatusIndicator } from '../components/StatusIndicator';
 import { ContextIndicator, ContextSelector, ContextType } from '../components/ContextIndicator';
+import { ModeSelector, ModeIndicator } from '../components/ModeSelector';
 
 export const Home: React.FC = () => {
   const { settings } = useSettings();
@@ -38,11 +39,14 @@ export const Home: React.FC = () => {
     error: cleanupError,
     changes,
     cleanupWithAutoContext,
+    cleanupWithMode,
     reset: resetCleanup,
     context,
     setContext,
     detectedContext,
     processingTime,
+    currentMode,
+    setCurrentMode,
   } = useGeminiCleanup();
 
   const activeContext = manualContext || detectedContext;
@@ -52,6 +56,14 @@ export const Home: React.FC = () => {
       setLanguage(settings.defaultLanguage);
     }
   }, [settings?.defaultLanguage, setLanguage]);
+
+  useEffect(() => {
+    if (settings?.defaultDictationMode && !settings?.alwaysUseAutoMode) {
+      setCurrentMode(settings.defaultDictationMode);
+    } else if (settings?.alwaysUseAutoMode) {
+      setCurrentMode('auto');
+    }
+  }, [settings?.defaultDictationMode, settings?.alwaysUseAutoMode, setCurrentMode]);
 
   const detectContextBeforeDictation = useCallback(async () => {
     setIsDetectingContext(true);
@@ -84,7 +96,9 @@ export const Home: React.FC = () => {
         }
         
         if (settings?.autoCleanup) {
-          if (manualContext) {
+          if (currentMode !== 'auto') {
+            await cleanupWithMode(textToClean, currentMode, language);
+          } else if (manualContext) {
             await window.electronAPI.cleanupWithContext(textToClean, manualContext, language);
           } else {
             await cleanupWithAutoContext(textToClean, language);
@@ -96,7 +110,9 @@ export const Home: React.FC = () => {
       resetCleanup();
       setManualContext(null);
       setSnippetReplacements([]);
-      await detectContextBeforeDictation();
+      if (currentMode === 'auto') {
+        await detectContextBeforeDictation();
+      }
       startListening();
     }
   }, [
@@ -105,6 +121,8 @@ export const Home: React.FC = () => {
     startListening,
     transcript,
     cleanupWithAutoContext,
+    cleanupWithMode,
+    currentMode,
     language,
     settings,
     resetTranscript,
@@ -155,11 +173,20 @@ export const Home: React.FC = () => {
 
   const handleManualCleanup = async () => {
     if (transcript) {
-      if (manualContext) {
+      if (currentMode !== 'auto') {
+        await cleanupWithMode(transcript, currentMode, language);
+      } else if (manualContext) {
         await window.electronAPI.cleanupWithContext(transcript, manualContext, language);
       } else {
         await cleanupWithAutoContext(transcript, language);
       }
+    }
+  };
+
+  const handleModeChange = (mode: DictationMode) => {
+    setCurrentMode(mode);
+    if (mode !== 'auto') {
+      setManualContext(null);
     }
   };
 
@@ -218,27 +245,37 @@ export const Home: React.FC = () => {
             isProcessing={isProcessing}
             error={speechError || cleanupError}
           />
+          {currentMode !== 'auto' && (
+            <ModeIndicator mode={currentMode} />
+          )}
         </div>
         <div className="flex items-center gap-3 non-draggable">
-          <div className="relative">
-            <ContextIndicator
-              context={activeContext}
-              isDetecting={isDetectingContext}
-              onOverride={handleContextOverride}
-              compact
-            />
-            <ContextSelector
-              currentContext={(activeContext?.type || context) as ContextType}
-              onSelect={handleContextSelect}
-              isOpen={showContextSelector}
-              onClose={() => setShowContextSelector(false)}
-            />
-          </div>
+          {currentMode === 'auto' && (
+            <div className="relative">
+              <ContextIndicator
+                context={activeContext}
+                isDetecting={isDetectingContext}
+                onOverride={handleContextOverride}
+                compact
+              />
+              <ContextSelector
+                currentContext={(activeContext?.type || context) as ContextType}
+                onSelect={handleContextSelect}
+                isOpen={showContextSelector}
+                onClose={() => setShowContextSelector(false)}
+              />
+            </div>
+          )}
         </div>
       </header>
 
       <main className="flex-1 flex flex-col items-center p-6 overflow-hidden">
         <div className="flex flex-col items-center gap-4 mb-6">
+          <ModeSelector
+            currentMode={currentMode}
+            onModeChange={handleModeChange}
+            disabled={isListening}
+          />
           <DictationButton
             isListening={isListening}
             onClick={handleToggleRecording}
@@ -253,7 +290,7 @@ export const Home: React.FC = () => {
           <p className="text-text-secondary text-sm">
             {isListening ? 'Cliquez pour arrêter' : 'Cliquez pour commencer la dictée'}
           </p>
-          {activeContext && !isListening && (
+          {currentMode === 'auto' && activeContext && !isListening && (
             <div className="flex items-center gap-2 text-xs text-text-secondary">
               <span>Contexte:</span>
               <ContextIndicator

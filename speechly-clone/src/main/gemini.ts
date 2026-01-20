@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { CleanupOptions, CleanupResult } from '../shared/types';
-import { getSettings } from './database';
+import { CleanupOptions, CleanupResult, DictationMode, UserProfile } from '../shared/types';
+import { getSettings, getUserProfile } from './database';
 import { DetectedContext, ContextType } from './services/context-detector';
 import { getPromptForContext } from './services/context-prompts';
+import { getModePrompt } from './services/mode-prompts';
 import contextDictionaries from '../data/context-dictionaries.json';
 
 let genAI: GoogleGenerativeAI | null = null;
@@ -275,4 +276,81 @@ export async function cleanupTranscriptAuto(
   }
 
   return cleanupWithContext(text, context, language);
+}
+
+export async function cleanupWithMode(
+  text: string,
+  mode: DictationMode,
+  language?: string
+): Promise<ContextCleanupResult> {
+  const startTime = Date.now();
+  const ai = getGenAI();
+
+  if (!ai) {
+    return {
+      original: text,
+      cleaned: text,
+      changes: ['API key not configured - returning original text'],
+      processingTime: Date.now() - startTime,
+    };
+  }
+
+  if (mode === 'auto') {
+    return cleanupTranscriptAuto(text, null, language);
+  }
+
+  try {
+    const userProfile = getUserProfile();
+    const settings = getSettings();
+    const modelName = settings?.geminiModel || 'gemini-2.0-flash';
+    const model = ai.getGenerativeModel({ model: modelName });
+
+    let prompt = getModePrompt(mode, userProfile);
+    
+    if (language) {
+      prompt = prompt.replace(
+        'LANGUE:',
+        `LANGUE DÉTECTÉE: ${language}\nLANGUE:`
+      );
+    }
+
+    prompt = prompt.replace('{transcript}', text);
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let cleaned = response.text().trim();
+
+    cleaned = cleaned.replace(/^["']|["']$/g, '');
+
+    const changes: string[] = [];
+    changes.push(`Mode: ${mode}`);
+    if (cleaned !== text) {
+      if (cleaned.length !== text.length) {
+        changes.push(`Length: ${text.length} → ${cleaned.length} chars`);
+      }
+      const originalWords = text.split(/\s+/).length;
+      const cleanedWords = cleaned.split(/\s+/).length;
+      if (originalWords !== cleanedWords) {
+        changes.push(`Words: ${originalWords} → ${cleanedWords}`);
+      }
+      changes.push('Content formatted for mode');
+    }
+
+    return {
+      original: text,
+      cleaned,
+      changes,
+      processingTime: Date.now() - startTime,
+    };
+  } catch (error) {
+    console.error('Gemini API error (mode cleanup):', error);
+    return {
+      original: text,
+      cleaned: basicCleanup(text),
+      changes: [
+        `Error (fallback used): ${error instanceof Error ? error.message : 'Unknown error'}`,
+      ],
+      processingTime: Date.now() - startTime,
+    };
+  }
 }

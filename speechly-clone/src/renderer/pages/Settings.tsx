@@ -8,7 +8,8 @@ import { HotkeyInput } from '../components/HotkeyInput';
 import { ApiKeyInput } from '../components/ApiKeyInput';
 import { Toggle } from '../components/Toggle';
 import { useSettings } from '../stores/settings';
-import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel } from '../../shared/types';
+import { SUPPORTED_LANGUAGES, GEMINI_MODELS, GeminiModel, DictationMode } from '../../shared/types';
+import { DICTATION_MODES } from '../../shared/constants';
 import { HISTORY_RETENTION_OPTIONS, THEME_OPTIONS } from '../../shared/constants';
 
 export const Settings: React.FC = () => {
@@ -79,6 +80,39 @@ export const Settings: React.FC = () => {
             <Toggle
               checked={settings.autoDetectLanguage}
               onChange={(v) => updateSettings({ autoDetectLanguage: v })}
+            />
+          </div>
+
+          <div className="border-t border-bg-tertiary pt-4 mt-4">
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              Mode de dictée par défaut
+            </label>
+            <select
+              value={settings.defaultDictationMode || 'auto'}
+              onChange={(e) => updateSettings({ defaultDictationMode: e.target.value as DictationMode })}
+              className="w-full bg-bg-tertiary text-text-primary border border-bg-tertiary rounded-lg px-4 py-3
+                        focus:border-accent-purple focus:outline-none cursor-pointer"
+            >
+              {DICTATION_MODES.map((mode) => (
+                <option key={mode.id} value={mode.id}>
+                  {mode.name} - {mode.description}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-text-secondary mt-2">
+              Le mode sélectionné sera utilisé par défaut au démarrage.
+              Raccourcis: Ctrl+1 (Auto), Ctrl+2 (Raw), Ctrl+3 (Email), Ctrl+4 (Prompt), Ctrl+5 (Todo), Ctrl+6 (Notes)
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between mt-4">
+            <div>
+              <span className="text-sm font-medium text-text-primary">Toujours utiliser le mode Auto</span>
+              <p className="text-xs text-text-secondary">Ignore le mode par défaut et utilise toujours la détection automatique</p>
+            </div>
+            <Toggle
+              checked={settings.alwaysUseAutoMode || false}
+              onChange={(v) => updateSettings({ alwaysUseAutoMode: v })}
             />
           </div>
         </div>

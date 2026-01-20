@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Settings } from '../../shared/types';
+import { Settings, DictationMode } from '../../shared/types';
 
 interface SettingsStore {
   settings: Settings;
@@ -19,6 +19,8 @@ const defaultSettings: Settings = {
   hotkeyInsert: 'CommandOrControl+Shift+V',
   autoCleanup: true,
   contextAwareCleanup: true,
+  defaultDictationMode: 'auto' as DictationMode,
+  alwaysUseAutoMode: false,
   saveHistory: true,
   historyRetentionDays: 30,
   theme: 'dark',

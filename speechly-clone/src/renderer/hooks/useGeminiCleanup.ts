@@ -5,6 +5,7 @@ import {
   CleanupContext,
   DetectedContext,
   ContextCleanupResult,
+  DictationMode,
 } from '../../shared/types';
 
 interface GeminiCleanupHook {
@@ -14,11 +15,14 @@ interface GeminiCleanupHook {
   changes: string[];
   cleanup: (text: string, options?: CleanupOptions) => Promise<void>;
   cleanupWithAutoContext: (text: string, language?: string) => Promise<DetectedContext | null>;
+  cleanupWithMode: (text: string, mode: DictationMode, language?: string) => Promise<void>;
   reset: () => void;
   context: CleanupContext;
   setContext: (context: CleanupContext) => void;
   detectedContext: DetectedContext | null;
   processingTime: number | null;
+  currentMode: DictationMode;
+  setCurrentMode: (mode: DictationMode) => void;
 }
 
 export function useGeminiCleanup(): GeminiCleanupHook {
@@ -29,6 +33,7 @@ export function useGeminiCleanup(): GeminiCleanupHook {
   const [context, setContext] = useState<CleanupContext>('general');
   const [detectedContext, setDetectedContext] = useState<DetectedContext | null>(null);
   const [processingTime, setProcessingTime] = useState<number | null>(null);
+  const [currentMode, setCurrentMode] = useState<DictationMode>('auto');
 
   const cleanup = useCallback(
     async (text: string, options?: CleanupOptions) => {
@@ -105,6 +110,38 @@ export function useGeminiCleanup(): GeminiCleanupHook {
     []
   );
 
+  const cleanupWithMode = useCallback(
+    async (text: string, mode: DictationMode, language?: string): Promise<void> => {
+      if (!text.trim()) {
+        setCleanedText('');
+        return;
+      }
+
+      setIsProcessing(true);
+      setError(null);
+
+      try {
+        const result: ContextCleanupResult =
+          await window.electronAPI.cleanupWithMode(text, mode, language);
+
+        setCleanedText(result.cleaned);
+        setChanges(result.changes);
+
+        if (result.processingTime) {
+          setProcessingTime(result.processingTime);
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to cleanup text';
+        setError(errorMessage);
+        setCleanedText(text);
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    []
+  );
+
   const reset = useCallback(() => {
     setCleanedText('');
     setError(null);
@@ -120,10 +157,13 @@ export function useGeminiCleanup(): GeminiCleanupHook {
     changes,
     cleanup,
     cleanupWithAutoContext,
+    cleanupWithMode,
     reset,
     context,
     setContext,
     detectedContext,
     processingTime,
+    currentMode,
+    setCurrentMode,
   };
 }
